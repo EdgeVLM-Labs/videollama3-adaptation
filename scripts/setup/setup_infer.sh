@@ -39,7 +39,8 @@ echo "----------------------------------------------"
 echo "Installing Flash Attention..."
 echo "----------------------------------------------"
 # Flash-attn pinned to a compatible version
-pip install flash-attn==2.7.3 --no-build-isolation --upgrade
+# pip install flash-attn==2.7.3 --no-build-isolation --upgrade
+pip install --no-cache-dir flash-attn==2.7.3 --no-build-isolation --upgrade
 
 echo ""
 echo "----------------------------------------------"
@@ -54,6 +55,8 @@ echo "Installing video processing dependencies..."
 echo "----------------------------------------------"
 # Video processing dependencies
 pip install decord ffmpeg-python imageio opencv-python
+
+ pip install hf_transfer
 
 echo ""
 echo "----------------------------------------------"
