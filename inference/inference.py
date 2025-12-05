@@ -35,7 +35,7 @@ conversation = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "image": {"video_path": "./assets/00002180.mp4"}},
+            {"type": "video", "video": {"video_path": "./assets/00002180.mp4"}},
             {"type": "text", "text": USER_PROMPT},
         ]
     }
