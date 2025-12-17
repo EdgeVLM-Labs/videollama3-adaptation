@@ -55,8 +55,7 @@ echo "Installing video processing dependencies..."
 echo "----------------------------------------------"
 # Video processing dependencies
 pip install decord ffmpeg-python imageio opencv-python
-
- pip install hf_transfer
+pip install hf_transfer
 
 echo ""
 echo "----------------------------------------------"
