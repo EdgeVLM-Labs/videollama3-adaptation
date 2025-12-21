@@ -60,10 +60,16 @@ export WANDB_PROJECT="videollama3"
 export WANDB_ENTITY="fyp-21"
 export WANDB_NAME="qved-finetune-$(date +%Y%m%d_%H%M%S)"
 
+# Model checkpoint - use HuggingFace model or local checkpoint
+# Option 1: HuggingFace model (recommended for initial fine-tuning)
+MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
+# Option 2: Local checkpoint (if you have one from previous training)
+# MODEL_PATH="work_dirs/videollama3/stage_3/checkpoint-xxxx"
+
 PRECEDING_RUN_NAME=stage_4
 RUN_NAME=stage_4
 DATA_DIR=dataset
-OUTP_DIR=work_dirs/videollama3/stage4
+OUTP_DIR=work_dirs/videollama3
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
@@ -73,7 +79,7 @@ torchrun --nnodes $WORLD_SIZE \
     videollama3/train.py \
     --deepspeed scripts/zero3.json \
     --model_type videollama3_qwen2 \
-    --model_path ${OUTP_DIR} \
+    --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
     --mm_projector_type mlp2x_gelu \
     --data_path ${DATA_DIR}/qved_train.json \
@@ -88,7 +94,7 @@ torchrun --nnodes $WORLD_SIZE \
     --bf16 True \
     --tf32 True \
     --fp16 False \
-    --output_dir ${OUTP_DIR}/${WANDB_PROJECT}/${RUN_NAME} \
+    --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs 1 \
     --per_device_train_batch_size $LOCAL_BATCH_SIZE \
     --per_device_eval_batch_size 4 \
