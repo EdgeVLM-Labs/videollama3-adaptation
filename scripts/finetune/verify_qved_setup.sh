@@ -79,7 +79,11 @@ import os
 with open('dataset/qved_train.json') as f:
     data = json.load(f)
     total = len(data)
-    missing = sum(1 for item in data if not os.path.exists(os.path.join('dataset', item['video'])))
+    missing = 0
+    for item in data:
+        video_path = item['video'][0] if isinstance(item['video'], list) else item['video']
+        if not os.path.exists(os.path.join('dataset', video_path)):
+            missing += 1
     print(f'{total},{missing}')
 " 2>/dev/null)
 
@@ -101,7 +105,11 @@ import os
 with open('dataset/qved_val.json') as f:
     data = json.load(f)
     total = len(data)
-    missing = sum(1 for item in data if not os.path.exists(os.path.join('dataset', item['video'])))
+    missing = 0
+    for item in data:
+        video_path = item['video'][0] if isinstance(item['video'], list) else item['video']
+        if not os.path.exists(os.path.join('dataset', video_path)):
+            missing += 1
     print(f'{total},{missing}')
 " 2>/dev/null)
 
@@ -123,7 +131,11 @@ import os
 with open('dataset/qved_test.json') as f:
     data = json.load(f)
     total = len(data)
-    missing = sum(1 for item in data if not os.path.exists(os.path.join('dataset', item['video'])))
+    missing = 0
+    for item in data:
+        video_path = item['video'][0] if isinstance(item['video'], list) else item['video']
+        if not os.path.exists(os.path.join('dataset', video_path)):
+            missing += 1
     print(f'{total},{missing}')
 " 2>/dev/null)
 
