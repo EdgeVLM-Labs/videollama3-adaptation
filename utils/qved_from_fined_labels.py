@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Paths
 BASE_DIR = Path("dataset")
-FINE_LABELS_JSON = BASE_DIR / "ground_truth.json"
+FINE_LABELS_JSON = BASE_DIR / "fine_grained_labels.json"
 MANIFEST_JSON = BASE_DIR / "manifest.json"
 OUTPUT_TRAIN_JSON = BASE_DIR / "qved_train.jsonl"
 OUTPUT_VAL_JSON = BASE_DIR / "qved_val.jsonl"

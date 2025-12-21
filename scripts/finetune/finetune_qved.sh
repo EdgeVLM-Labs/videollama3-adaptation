@@ -58,10 +58,10 @@ echo $GRADIENT_ACCUMULATION_STEPS
 # Log Arguments
 export WANDB_PROJECT=videollama3
 export WANDB_ENTITY=samarasinghenidhan3-bcs-technology
-PRECEDING_RUN_NAME=stage_3
+PRECEDING_RUN_NAME=stage_4
 RUN_NAME=stage_4
 DATA_DIR=dataset
-OUTP_DIR=results
+OUTP_DIR=work_dirs/videollama3/stage4 
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
@@ -71,7 +71,7 @@ torchrun --nnodes $WORLD_SIZE \
     videollama3/train.py \
     --deepspeed scripts/zero1.json \
     --model_type videollama3_qwen2 \
-    --model_path ${OUTP_DIR}/${WANDB_PROJECT}/${PRECEDING_RUN_NAME} \
+    --model_path ${OUTP_DIR} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
     --mm_projector_type mlp2x_gelu \
     --data_path ${DATA_DIR}/qved_train.jsonl \
