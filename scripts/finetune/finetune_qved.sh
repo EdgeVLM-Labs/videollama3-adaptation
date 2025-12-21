@@ -77,7 +77,7 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero3.json \
+    --deepspeed scripts/zero2.json \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
@@ -99,11 +99,12 @@ torchrun --nnodes $WORLD_SIZE \
     --per_device_train_batch_size $LOCAL_BATCH_SIZE \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
-    --evaluation_strategy "no" \
+    --eval_strategy "steps" \
+    --eval_steps 10 \
     --save_strategy "steps" \
-    --save_steps 1000 \
+    --save_steps 10 \
     --save_total_limit 2 \
-    --llm_lr 1e-5 \
+    --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
     --vision_encoder_lr 2e-6 \
     --weight_decay 0. \
@@ -111,7 +112,7 @@ torchrun --nnodes $WORLD_SIZE \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 16 \
+    --dataloader_num_workers 1 \
     --report_to tensorboard \
     --run_name $RUN_NAME \
     --dataset_cache_dir /mnt/damovl/DAMOVL_DATASETS/.cache
