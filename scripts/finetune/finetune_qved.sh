@@ -71,9 +71,18 @@ echo "Starting Stage 4 Fine-tuning..."
 echo "----------------------------------------------"
 echo ""
 
+# Detect number of available GPUs
+if command -v nvidia-smi &> /dev/null; then
+    AVAILABLE_GPUS=$(nvidia-smi --list-gpus | wc -l)
+    echo "Detected $AVAILABLE_GPUS GPU(s)"
+else
+    AVAILABLE_GPUS=1
+    echo "Could not detect GPUs, assuming 1 GPU"
+fi
+
 # Environment Variables
 ARG_WORLD_SIZE=${1:-1}
-ARG_NPROC_PER_NODE=${2:-8}
+ARG_NPROC_PER_NODE=${2:-$AVAILABLE_GPUS}  # Default to detected GPU count
 ARG_MASTER_ADDR="127.0.0.1"
 ARG_MASTER_PORT=16667
 ARG_RANK=0
@@ -82,12 +91,19 @@ ARG_RANK=0
 if [ ! -n "$WORLD_SIZE" ] || [ ! -n "$NPROC_PER_NODE" ]; then
     WORLD_SIZE=$ARG_WORLD_SIZE
     NPROC_PER_NODE=$ARG_NPROC_PER_NODE
-fi
-if [ ! -n "$MASTER_ADDR" ] || [ ! -n "$MASTER_PORT" ] || [ ! -n "$RANK" ]; then
-    MASTER_ADDR=$ARG_MASTER_ADDR
-    MASTER_PORT=$ARG_MASTER_PORT
-    RANK=$ARG_RANK
-fi
+echo ""
+
+# Training Arguments
+GLOBAL_BATCH_SIZE=128
+LOCAL_BATCH_SIZE=4  # Per-device batch size (optimized for A40 48GB)
+GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
+
+echo "Training Configuration:"
+echo "  Global Batch Size: $GLOBAL_BATCH_SIZE"
+echo "  Local Batch Size: $LOCAL_BATCH_SIZE"
+echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
+echo "  Effective Batch Size: $GLOBAL_BATCH_SIZE"
+echo ""
 
 echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
