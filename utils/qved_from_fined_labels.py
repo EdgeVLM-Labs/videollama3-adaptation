@@ -16,9 +16,9 @@ USER_PROMPT_TEMPLATE = (
 )
 
 # Dataset split ratios (adjustable)
-TRAIN_RATIO = 0.60
+TRAIN_RATIO = 0.70
 VAL_RATIO = 0.20
-TEST_RATIO = 0.20
+TEST_RATIO = 0.10
 RANDOM_SEED = 42  # For reproducibility
 
 
