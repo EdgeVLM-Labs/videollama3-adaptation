@@ -8,6 +8,9 @@ echo "----------------------------------------------"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 export HF_HOME=${HF_HOME:-~/.cache/huggingface}
 
+# PyTorch memory management to avoid fragmentation
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
 # Pre-download models if not cached
 echo ""
 echo "----------------------------------------------"
@@ -100,7 +103,7 @@ echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
 # Training Arguments
-GLOBAL_BATCH_SIZE=8
+GLOBAL_BATCH_SIZE=4
 LOCAL_BATCH_SIZE=1
 GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
 
@@ -132,7 +135,7 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero2.json \
+    --deepspeed scripts/zero3.json \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
@@ -142,9 +145,9 @@ torchrun --nnodes $WORLD_SIZE \
     --image_merge_size 2 \
     --video_merge_size 2 \
     --fps 1 \
-    --max_frames 64 \
-    --model_max_length 8192 \
-    --mm_max_length 4096 \
+    --max_frames 32 \
+    --model_max_length 2048 \
+    --mm_max_length 2048 \
     --use_token_compression True \
     --bf16 True \
     --tf32 True \
