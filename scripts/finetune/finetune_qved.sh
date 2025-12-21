@@ -74,7 +74,7 @@ torchrun --nnodes $WORLD_SIZE \
     --model_path ${OUTP_DIR}/${WANDB_PROJECT}/${PRECEDING_RUN_NAME} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
     --mm_projector_type mlp2x_gelu \
-    --data_path ${DATA_DIR}/annotations.jsonl \
+    --data_path ${DATA_DIR}/qved_train.jsonl \
     --data_folder ${DATA_DIR} \
     --image_merge_size 2 \
     --video_merge_size 2 \

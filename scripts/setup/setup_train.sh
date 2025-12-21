@@ -29,7 +29,7 @@ conda activate videollama3-train
 
 pip install --upgrade pip
 
-cd VideoLLaMA3
+cd videollama3-adaptation
 
 echo ""
 echo "----------------------------------------------"
@@ -41,7 +41,7 @@ echo ""
 echo "----------------------------------------------"
 echo "Installing Flash Attention..."
 echo "----------------------------------------------"
-pip install flash-attn --no-build-isolation
+pip install "flash-attn==2.7.3" --no-build-isolation
 
 echo ""
 echo "----------------------------------------------"
