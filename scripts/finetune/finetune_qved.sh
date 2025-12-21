@@ -48,23 +48,30 @@ echo "----------------------------------------------"
 echo "Models ready. Starting training..."
 echo "----------------------------------------------"
 
-# # Initialize conda
-# source $HOME/miniconda/etc/profile.d/conda.sh
+# Ensure we're in the project root
+# When running: bash scripts/finetune/quickstart_finetune.sh from project root
+echo "Current working directory: $(pwd)"
 
-# # Activate the training environment
-# conda activate videollama3-train
+# Verify dataset accessibility
+if [ ! -d "dataset" ]; then
+    echo "✗ ERROR: Dataset directory not found"
+    echo "  Expected: $(pwd)/dataset"
+    echo "  Please run from project root: /workspace/videollama3-adaptation"
+    exit 1
+fi
 
-# if [ $? -ne 0 ]; then
-#     echo "Error: Failed to activate conda environment 'videollama3-train'"
-#     echo "Please ensure the environment is created using setup_train.sh"
-#     exit 1
-# fi
+echo "✓ Dataset directory found at: $(pwd)/dataset"
+VIDEO_COUNT=$(find dataset -name "*.mp4" -type f 2>/dev/null | wc -l)
+echo "✓ Found $VIDEO_COUNT video files"
 
-# echo "Environment activated successfully!"
-# echo ""
+# Verify training data file
+if [ ! -f "dataset/qved_train.json" ]; then
+    echo "✗ ERROR: Training data not found at dataset/qved_train.json"
+    exit 1
+fi
+echo "✓ Training data found: dataset/qved_train.json"
 
-# # Navigate to the project root
-# cd "$(dirname "$0")/../.."
+echo ""
 
 echo "----------------------------------------------"
 echo "Starting Stage 4 Fine-tuning..."
