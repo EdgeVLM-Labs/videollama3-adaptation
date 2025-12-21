@@ -3,7 +3,7 @@
 echo "----------------------------------------------"
 echo "Setting up VideoLLaMA3 training environment"
 echo "----------------------------------------------"
-cd ../..
+cd ..
 echo ""
 
 echo "----------------------------------------------"
@@ -19,6 +19,7 @@ source $HOME/miniconda/etc/profile.d/conda.sh #initialize conda for bash
 
 conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
 conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 
 echo "----------------------------------------------"
 echo "Creating conda environment (videollama3-train)..."
