@@ -132,7 +132,7 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero3.json \
+    --deepspeed scripts/zero2.json \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
@@ -157,6 +157,7 @@ torchrun --nnodes $WORLD_SIZE \
     --evaluation_strategy "no" \
     --save_strategy "epoch" \
     --save_total_limit 2 \
+    --learning_rate 2e-5 \
     --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
     --vision_encoder_lr 2e-6 \
