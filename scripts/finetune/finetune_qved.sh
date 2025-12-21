@@ -41,7 +41,17 @@ if [ "$MODELS_EXIST" = false ]; then
     fi
 else
     echo "✓ All required models found in cache"
-# echo "Activating videollama3-train environment..."
+fi
+
+echo ""
+echo "----------------------------------------------"
+echo "Models ready. Starting training..."
+echo "----------------------------------------------"
+
+# # Initialize conda
+# source $HOME/miniconda/etc/profile.d/conda.sh
+
+# # Activate the training environment
 # conda activate videollama3-train
 
 # if [ $? -ne 0 ]; then
