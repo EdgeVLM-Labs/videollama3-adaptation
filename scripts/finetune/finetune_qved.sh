@@ -167,7 +167,7 @@ torchrun --nnodes $WORLD_SIZE \
     --logging_steps 1 \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
-    --report_to tensorboard \
+    --report_to wandb \
     --run_name $RUN_NAME
 
 echo ""

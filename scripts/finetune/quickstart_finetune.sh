@@ -52,16 +52,7 @@ else
     MODEL_PATH="work_dirs/videollama3/stage_4"
 fi
 
-# Optional: Check tensorboard logs
-echo -e "\n========================================="
-echo "Training Logs and Monitoring"
-echo "========================================="
-if [ -d "work_dirs/videollama3/stage_4/runs" ]; then
-    echo "✓ TensorBoard logs available"
-    echo "  View with: tensorboard --logdir work_dirs/videollama3/stage_4/runs"
-else
-    echo "⚠ No TensorBoard logs found yet"
-fi
+# Training output is logged to logs/ directory
 
 echo -e "\n========================================="
 echo "All steps complete!"
@@ -69,15 +60,12 @@ echo "========================================="
 echo ""
 echo "Next steps:"
 echo ""
-echo "1. View training progress:"
-echo "   tensorboard --logdir work_dirs/videollama3/stage_4/runs"
-echo ""
-echo "2. Test the finetuned model:"
+echo "1. Test the finetuned model:"
 echo "   python inference/example_videollama3.py \\"
 echo "     --model_path $MODEL_PATH \\"
 echo "     --video_path dataset/squats/00255568.mp4"
 echo ""
-echo "3. Launch Gradio demo:"
+echo "2. Launch Gradio demo:"
 echo "   python inference/launch_gradio_demo.py \\"
 echo "     --model_path $MODEL_PATH"
 echo ""
