@@ -85,7 +85,7 @@ def main():
         user_prompt = f"<video>\n{USER_PROMPT_TEMPLATE}"
 
         output_data.append({
-            "video": relative_video_path,
+            "video": [relative_video_path],
             "conversations": [
                 {"from": "human", "value": user_prompt},
                 {"from": "gpt", "value": assistant_answer}

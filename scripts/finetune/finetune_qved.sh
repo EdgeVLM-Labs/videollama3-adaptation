@@ -99,9 +99,9 @@ fi
 echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
-# Training Arguments - Single GPU optimized
-GLOBAL_BATCH_SIZE=32  # Reduced for single GPU
-LOCAL_BATCH_SIZE=1     # Start conservative to avoid OOM
+# Training Arguments
+GLOBAL_BATCH_SIZE=32
+LOCAL_BATCH_SIZE=1
 GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
 
 echo "Training configuration:"
@@ -118,7 +118,7 @@ export WANDB_NAME="qved-finetune-$(date +%Y%m%d_%H%M%S)"
 # Model checkpoint - use HuggingFace model or local checkpoint
 # Option 1: HuggingFace model (recommended for initial fine-tuning)
 MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
-# Option 2: Local checkpoint (if you have one from previous training)
+# Option 2: Local checkpoint
 # MODEL_PATH="work_dirs/videollama3/stage_3/checkpoint-xxxx"
 
 PRECEDING_RUN_NAME=stage_4
