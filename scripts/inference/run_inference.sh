@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# QVED Test Inference and Evaluation Report Generator
+# VideoLLaMA3 QVED Test Inference and Evaluation Report Generator
 # This script runs inference on the test set and generates an evaluation report
 
 set -e  # Exit on error
 
 echo "========================================="
-echo "QVED Test Inference & Evaluation"
+echo "VideoLLaMA3 Test Inference & Evaluation"
 echo "========================================="
 
 # Default values
 MODEL_PATH=""
-HF_REPO=""
 TEST_JSON="dataset/qved_test.json"
 DATA_PATH="dataset"
 OUTPUT_DIR=""
 DEVICE="cuda"
-MAX_NEW_TOKENS=64
-BASE_MODEL="Amshaker/Mobile-VideoGPT-0.5B"
+MAX_NEW_TOKENS=512
+FPS=1
+MAX_FRAMES=32
 LIMIT=""
 NO_BERT=""
 
@@ -26,10 +26,6 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --model_path)
             MODEL_PATH="$2"
-            shift 2
-            ;;
-        --hf_repo)
-            HF_REPO="$2"
             shift 2
             ;;
         --test_json)
@@ -52,8 +48,12 @@ while [[ $# -gt 0 ]]; do
             MAX_NEW_TOKENS="$2"
             shift 2
             ;;
-        --base_model)
-            BASE_MODEL="$2"
+        --fps)
+            FPS="$2"
+            shift 2
+            ;;
+        --max_frames)
+            MAX_FRAMES="$2"
             shift 2
             ;;
         --limit)
@@ -65,31 +65,28 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: bash scripts/run_inference.sh [--model_path <path> | --hf_repo <repo>] [options]"
+            echo "Usage: bash scripts/inference/run_inference.sh --model_path <path> [options]"
             echo ""
-            echo "Model Source (one required):"
-            echo "  --model_path      Path to local finetuned model checkpoint"
-            echo "  --hf_repo         HuggingFace repository URL/ID (e.g., EdgeVLM-Labs/qved-finetune-20241128)"
+            echo "Required:"
+            echo "  --model_path      Path to finetuned VideoLLaMA3 model checkpoint"
             echo ""
             echo "Optional:"
             echo "  --test_json       Path to test set JSON (default: dataset/qved_test.json)"
             echo "  --data_path       Base path for video files (default: dataset)"
-            echo "  --output_dir      Output directory for results (default: model directory or results/hf_inference)"
+            echo "  --output_dir      Output directory for results (default: model directory)"
             echo "  --device          Device to use: cuda/cpu (default: cuda)"
-            echo "  --max_new_tokens  Max tokens to generate (default: 64)"
-            echo "  --base_model      Base model for LoRA adapters (default: Amshaker/Mobile-VideoGPT-0.5B)"
+            echo "  --max_new_tokens  Max tokens to generate (default: 512)"
+            echo "  --fps             Video FPS for processing (default: 1)"
+            echo "  --max_frames      Max frames to extract from video (default: 32)"
             echo "  --limit           Limit number of samples (for testing)"
             echo "  --no-bert         Skip BERT similarity (faster evaluation)"
             echo ""
             echo "Examples:"
             echo "  # Using local checkpoint:"
-            echo "  bash scripts/run_inference.sh --model_path results/qved_finetune_mobilevideogpt_0.5B/checkpoint-70"
-            echo ""
-            echo "  # Using HuggingFace model:"
-            echo "  bash scripts/run_inference.sh --hf_repo EdgeVLM-Labs/qved-finetune-20241128"
+            echo "  bash scripts/inference/run_inference.sh --model_path results/qved_finetune/qved-finetune-20251221/checkpoint-20"
             echo ""
             echo "  # With options:"
-            echo "  bash scripts/run_inference.sh --model_path results/qved_finetune_mobilevideogpt_0.5B --limit 10"
+            echo "  bash scripts/inference/run_inference.sh --model_path results/qved_finetune/run1 --limit 10 --max_frames 64"
             exit 0
             ;;
         *)
@@ -100,36 +97,37 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate: either model_path or hf_repo must be provided
-if [ -z "$MODEL_PATH" ] && [ -z "$HF_REPO" ]; then
-    echo "❌ Error: Either --model_path or --hf_repo is required"
+# Validate: model_path must be provided
+if [ -z "$MODEL_PATH" ]; then
+    echo "❌ Error: --model_path is required"
     echo "Use --help for usage information"
     exit 1
 fi
 
-# If HF repo is provided, use it as model path
-if [ -n "$HF_REPO" ]; then
-    # Extract repo ID from URL if full URL is provided
-    # e.g., https://huggingface.co/EdgeVLM-Labs/qved-finetune -> EdgeVLM-Labs/qved-finetune
-    if [[ "$HF_REPO" == *"huggingface.co/"* ]]; then
-        HF_REPO=$(echo "$HF_REPO" | sed 's|.*huggingface.co/||' | sed 's|/$||')
-    fi
+# Validate model path exists
+if [ ! -e "$MODEL_PATH" ]; then
+    echo "❌ Error: Model path not found: $MODEL_PATH"
+    exit 1
+fi
 
-    echo "🤗 Using HuggingFace model: $HF_REPO"
-    MODEL_PATH="$HF_REPO"
+# Auto-detect latest checkpoint if path is a directory
+if [ -d "$MODEL_PATH" ]; then
+    # Check if this is already a checkpoint directory
+    if [[ "$MODEL_PATH" != *"checkpoint-"* ]]; then
+        # Look for checkpoint subdirectories
+        LATEST_CKPT=$(ls -d "$MODEL_PATH"/*/checkpoint-* 2>/dev/null | sort -V | tail -1)
 
-    # Set default output directory for HF models
-    if [ -z "$OUTPUT_DIR" ]; then
-        # Create output dir based on repo name
-        REPO_NAME=$(echo "$HF_REPO" | sed 's|/|_|g')
-        OUTPUT_DIR="results/hf_inference_${REPO_NAME}"
-        mkdir -p "$OUTPUT_DIR"
-    fi
-else
-    # Validate local model path exists
-    if [ ! -e "$MODEL_PATH" ]; then
-        echo "❌ Error: Model path not found: $MODEL_PATH"
-        exit 1
+        if [ -z "$LATEST_CKPT" ]; then
+            # Try direct checkpoint-* in current directory
+            LATEST_CKPT=$(ls -d "$MODEL_PATH"/checkpoint-* 2>/dev/null | sort -V | tail -1)
+        fi
+
+        if [ -n "$LATEST_CKPT" ]; then
+            echo "📍 Auto-detected latest checkpoint: $LATEST_CKPT"
+            MODEL_PATH="$LATEST_CKPT"
+        else
+            echo "ℹ️  No checkpoints found, using base model directory: $MODEL_PATH"
+        fi
     fi
 fi
 
@@ -162,7 +160,8 @@ echo "  Data path:       $DATA_PATH"
 echo "  Output dir:      $OUTPUT_DIR"
 echo "  Device:          $DEVICE"
 echo "  Max new tokens:  $MAX_NEW_TOKENS"
-echo "  Base model:      $BASE_MODEL"
+echo "  Video FPS:       $FPS"
+echo "  Max frames:      $MAX_FRAMES"
 if [ -n "$LIMIT" ]; then
     echo "  Sample limit:    $LIMIT"
 fi
@@ -185,7 +184,8 @@ python utils/test_inference.py \
     --output "$PREDICTIONS_FILE" \
     --device "$DEVICE" \
     --max_new_tokens "$MAX_NEW_TOKENS" \
-    --base_model "$BASE_MODEL" \
+    --fps "$FPS" \
+    --max_frames "$MAX_FRAMES" \
     $LIMIT_ARG
 
 if [ $? -ne 0 ]; then

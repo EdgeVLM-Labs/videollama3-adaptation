@@ -1,155 +1,171 @@
 #!/usr/bin/env python3
 """
-Test Inference Script for QVED Dataset
+VideoLLaMA3 Test Inference Script for QVED Dataset
 
-This script runs inference on videos from the QVED test set using a finetuned model.
+This script runs inference on videos from the QVED test set using a finetuned VideoLLaMA3 model.
 It loads videos from qved_test.json and generates predictions.
 
 Usage:
-    python utils/test_inference.py --model_path results/qved_finetune_mobilevideogpt_0.5B/checkpoint-70
-    python utils/test_inference.py --model_path results/qved_finetune_mobilevideogpt_0.5B --output test_predictions.json
+    python utils/test_inference.py --model_path results/qved_finetune/run1/checkpoint-20
+    python utils/test_inference.py --model_path results/qved_finetune/run1 --output test_predictions.json
 """
 
 import sys
 import os
 import warnings
-import logging
 import argparse
 import json
-
-os.environ['PYTHONWARNINGS'] = 'ignore'
-
-warnings.filterwarnings("ignore")
-
-logging.getLogger('mmengine').setLevel(logging.CRITICAL)
-logging.getLogger('transformers').setLevel(logging.CRITICAL)
-logging.getLogger('transformers.modeling_utils').setLevel(logging.CRITICAL)
+import time
+from pathlib import Path
+from tqdm import tqdm
 
 import torch
 import numpy as np
-from pathlib import Path
-from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
-from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoProcessor
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from mobilevideogpt.utils import preprocess_input
+# Suppress warnings
+os.environ['PYTHONWARNINGS'] = 'ignore'
+warnings.filterwarnings("ignore")
 
 
-def load_model(pretrained_path: str, device: str = "cuda", base_model: str = "Amshaker/Mobile-VideoGPT-0.5B"):
-    """Loads the pre-trained model and tokenizer.
+def load_model(model_path: str, device: str = "cuda"):
+    """
+    Load the finetuned VideoLLaMA3 model and processor.
 
     Args:
-        pretrained_path: Path to finetuned model (can be checkpoint or base dir with LoRA adapters)
+        model_path: Path to finetuned model checkpoint
         device: Device to load model on
-        base_model: Base model to use when loading LoRA adapters
+
+    Returns:
+        tuple: (model, processor)
     """
-    # Check if this is a LoRA checkpoint or full model
-    is_lora_checkpoint = False
-    adapter_path = pretrained_path
+    print(f"Loading model from: {model_path}")
 
-    # If it's a checkpoint-* directory, it contains LoRA adapters
-    if "checkpoint-" in pretrained_path:
-        is_lora_checkpoint = True
-    # If it's the base finetuning dir, check for adapter files
-    elif os.path.exists(os.path.join(pretrained_path, "adapter_config.json")):
-        is_lora_checkpoint = True
-
-    if is_lora_checkpoint:
-        print(f"Loading LoRA adapters from: {adapter_path}")
-        print(f"Base model: {base_model}")
-
-        # Load base model first
-        config = AutoConfig.from_pretrained(base_model)
-        tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
-        model = AutoModelForCausalLM.from_pretrained(
-            base_model,
-            config=config,
-            torch_dtype=torch.float16
-        )
-
-        # Load LoRA adapters
-        model = PeftModel.from_pretrained(model, adapter_path)
-        model = model.merge_and_unload()  # Merge LoRA weights into base model
-    else:
-        # Load full model directly
-        config = AutoConfig.from_pretrained(pretrained_path)
-        tokenizer = AutoTokenizer.from_pretrained(pretrained_path, use_fast=False)
-        model = AutoModelForCausalLM.from_pretrained(
-            pretrained_path,
-            config=config,
-            torch_dtype=torch.float16
-        )
-
-    model.to(device)
-    return model, tokenizer
-
-
-def run_inference(model, tokenizer, video_path: str, prompt: str, device: str = "cuda", max_new_tokens: int = 512):
-    """Runs inference on the given video file and returns prediction with throughput metrics."""
-    import time
-
-    input_ids, video_frames, context_frames, stop_str = preprocess_input(
-        model, tokenizer, video_path, prompt
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        trust_remote_code=True,
+        device_map={"": device},
+        torch_dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
     )
 
-    # Get input token count
-    input_token_count = input_ids.shape[1]
+    processor = AutoProcessor.from_pretrained(
+        model_path,
+        trust_remote_code=True
+    )
 
-    with torch.inference_mode():
-        # Time the generation
-        start_time = time.time()
+    return model, processor
 
-        output_ids = model.generate(
-            input_ids,
-            images=torch.stack(video_frames, dim=0).half().to(device),
-            context_images=torch.stack(context_frames, dim=0).half().to(device),
-            do_sample=False,  # Use greedy decoding
-            num_beams=1,
-            max_new_tokens=max_new_tokens,
-            use_cache=True,  # KV cache enabled
-        )
 
-        # End timing
-        end_time = time.time()
-        generation_time = end_time - start_time
+@torch.inference_mode()
+def run_inference(
+    model,
+    processor,
+    video_path: str,
+    prompt: str,
+    fps: int = 1,
+    max_frames: int = 32,
+    max_new_tokens: int = 512,
+    device: str = "cuda"
+):
+    """
+    Run inference on a single video.
+
+    Args:
+        model: VideoLLaMA3 model
+        processor: VideoLLaMA3 processor
+        video_path: Path to video file
+        prompt: Text prompt for the model
+        fps: Frames per second to extract
+        max_frames: Maximum number of frames to use
+        max_new_tokens: Maximum tokens to generate
+        device: Device to use
+
+    Returns:
+        tuple: (prediction_text, metrics_dict)
+    """
+    # Build conversation
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "video",
+                    "video": {
+                        "video_path": video_path,
+                        "fps": fps,
+                        "max_frames": max_frames
+                    }
+                },
+                {"type": "text", "text": prompt},
+            ]
+        },
+    ]
+
+    # Process inputs
+    inputs = processor(
+        conversation=conversation,
+        add_system_prompt=True,
+        add_generation_prompt=True,
+        return_tensors="pt"
+    )
+
+    # Move to device
+    inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+    if "pixel_values" in inputs:
+        inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
+
+    # Track metrics
+    input_token_count = inputs['input_ids'].shape[1]
+    start_time = time.time()
+
+    # Generate
+    output_ids = model.generate(
+        **inputs,
+        max_new_tokens=max_new_tokens,
+        do_sample=False,  # Greedy decoding
+        use_cache=True
+    )
+
+    end_time = time.time()
+    generation_time = end_time - start_time
+
+    # Decode output
+    response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 
     # Calculate metrics
     output_token_count = output_ids.shape[1]
-    generated_token_count = output_token_count - input_token_count  # Only new tokens
+    generated_token_count = output_token_count - input_token_count
     tokens_per_second = generated_token_count / generation_time if generation_time > 0 else 0
 
-    outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
-    if outputs.endswith(stop_str):
-        outputs = outputs[:-len(stop_str)].strip()
-
-    return outputs, {
+    metrics = {
         'generated_tokens': generated_token_count,
         'generation_time': generation_time,
         'tokens_per_second': tokens_per_second
     }
 
+    return response, metrics
 
-def warmup_gpu(model, tokenizer, warmup_videos: list, device: str = "cuda", max_new_tokens: int = 512):
+
+def warmup_gpu(model, processor, warmup_videos: list, **kwargs):
     """Warm up GPU with sample videos before actual inference."""
     print("\n🔥 Warming up GPU...")
-    for video_path in warmup_videos[:3]:  # Use up to 3 videos for warmup
+    for video_path in warmup_videos[:2]:  # Use 2 videos for warmup
         if not os.path.exists(video_path):
             continue
         try:
             prompt = "Please evaluate this exercise form."
-            _ = run_inference(model, tokenizer, video_path, prompt, device, max_new_tokens)
+            _ = run_inference(model, processor, video_path, prompt, **kwargs)
         except Exception as e:
             print(f"  ⚠ Warmup warning for {video_path}: {e}")
     print("✓ GPU warmup complete")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run inference on QVED test set")
+    parser = argparse.ArgumentParser(description="Run VideoLLaMA3 inference on QVED test set")
     parser.add_argument("--model_path", type=str, required=True,
-                        help="Path to finetuned model checkpoint")
+                        help="Path to finetuned VideoLLaMA3 model checkpoint")
     parser.add_argument("--test_json", type=str, default="dataset/qved_test.json",
                         help="Path to test set JSON")
     parser.add_argument("--data_path", type=str, default="dataset",
@@ -158,10 +174,12 @@ def main():
                         help="Output file for predictions (default: saves to model directory)")
     parser.add_argument("--device", type=str, default="cuda",
                         help="Device to use (cuda/cpu)")
-    parser.add_argument("--max_new_tokens", type=int, default=64,
+    parser.add_argument("--max_new_tokens", type=int, default=512,
                         help="Maximum number of new tokens to generate")
-    parser.add_argument("--base_model", type=str, default="Amshaker/Mobile-VideoGPT-0.5B",
-                        help="Base model to use when loading LoRA adapters")
+    parser.add_argument("--fps", type=int, default=1,
+                        help="Frames per second for video processing")
+    parser.add_argument("--max_frames", type=int, default=32,
+                        help="Maximum frames to extract from video")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit number of samples to process (for testing)")
 
@@ -178,12 +196,9 @@ def main():
         print(f"Output will be saved to: {args.output}")
 
     # Load model
-    print(f"📦 Loading model from: {args.model_path}")
-    model, tokenizer = load_model(
-        args.model_path,
-        device=args.device,
-        base_model=args.base_model
-    )
+    print(f"\n📦 Loading VideoLLaMA3 model...")
+    model, processor = load_model(args.model_path, device=args.device)
+    print("✓ Model loaded successfully")
 
     # Load test data
     print(f"\n📋 Loading test data from: {args.test_json}")
@@ -196,12 +211,19 @@ def main():
 
     print(f"Total test samples: {len(test_data)}")
 
-    # GPU warmup with sample videos
-    warmup_dir = Path("sample_videos")
-    if warmup_dir.exists() and args.device == "cuda":
-        warmup_videos = [str(f) for f in warmup_dir.glob("*.mp4")]
-        if warmup_videos:
-            warmup_gpu(model, tokenizer, warmup_videos, args.device, args.max_new_tokens)
+    # GPU warmup with first few test videos
+    if args.device == "cuda" and len(test_data) > 0:
+        warmup_videos = [
+            str(Path(args.data_path) / item['video'][0] if isinstance(item['video'], list) else item['video'])
+            for item in test_data[:2]
+        ]
+        warmup_gpu(
+            model, processor, warmup_videos,
+            fps=args.fps,
+            max_frames=args.max_frames,
+            max_new_tokens=args.max_new_tokens,
+            device=args.device
+        )
 
     # Run inference
     results = []
@@ -209,20 +231,31 @@ def main():
     print("\n🎬 Running inference...")
 
     for item in tqdm(test_data, desc="Processing videos"):
-        video_rel_path = item['video']
+        # Handle video path (could be list or string)
+        video_field = item['video']
+        if isinstance(video_field, list):
+            video_rel_path = video_field[0]
+        else:
+            video_rel_path = video_field
+
         video_path = str(Path(args.data_path) / video_rel_path)
 
         # Extract prompt and ground truth
         conversations = item['conversations']
-        prompt = conversations[0]['value']
+
+        # Remove <video> tag from prompt if present (processor handles it)
+        prompt = conversations[0]['value'].replace('<video>', '').strip()
         ground_truth = conversations[1]['value']
 
         try:
             # Run inference
             prediction, metrics = run_inference(
-                model, tokenizer,
+                model, processor,
                 video_path, prompt,
-                args.device, args.max_new_tokens
+                fps=args.fps,
+                max_frames=args.max_frames,
+                max_new_tokens=args.max_new_tokens,
+                device=args.device
             )
 
             throughput_stats.append(metrics['tokens_per_second'])
