@@ -4,10 +4,43 @@ echo "----------------------------------------------"
 echo "Starting VideoLLaMA3 Fine-tuning"
 echo "----------------------------------------------"
 
-# # Initialize conda
-# source $HOME/miniconda/etc/profile.d/conda.sh
+# Set HuggingFace environment variables for faster downloads
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_HOME=${HF_HOME:-~/.cache/huggingface}
 
-# # Activate the training environment
+# Pre-download models if not cached
+echo ""
+echo "----------------------------------------------"
+echo "Checking for required models..."
+echo "----------------------------------------------"
+
+# Check if models exist in cache
+MODELS_EXIST=true
+HF_CACHE="${HF_HOME}/hub"
+
+if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--VideoLLaMA3-2B" ]; then
+    echo "✗ VideoLLaMA3-2B not found in cache"
+    MODELS_EXIST=false
+fi
+
+if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--SigLIP-NaViT" ]; then
+    echo "✗ SigLIP-NaViT not found in cache"
+    MODELS_EXIST=false
+fi
+
+if [ "$MODELS_EXIST" = false ]; then
+    echo ""
+    echo "Downloading required models..."
+    python3 scripts/finetune/download_models.py
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "⚠ Warning: Model download encountered issues."
+        echo "Continuing anyway - training script will attempt download..."
+        echo ""
+    fi
+else
+    echo "✓ All required models found in cache"
 # echo "Activating videollama3-train environment..."
 # conda activate videollama3-train
 
