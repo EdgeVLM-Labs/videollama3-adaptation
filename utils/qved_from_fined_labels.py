@@ -7,11 +7,10 @@ from pathlib import Path
 BASE_DIR = Path("dataset")
 FINE_LABELS_JSON = BASE_DIR / "ground_truth.json"
 MANIFEST_JSON = BASE_DIR / "manifest.json"
-OUTPUT_TRAIN_JSON = BASE_DIR / "qved_train.json"
-OUTPUT_VAL_JSON = BASE_DIR / "qved_val.json"
-OUTPUT_TEST_JSON = BASE_DIR / "qved_test.json"
+OUTPUT_TRAIN_JSON = BASE_DIR / "qved_train.jsonl"
+OUTPUT_VAL_JSON = BASE_DIR / "qved_val.jsonl"
+OUTPUT_TEST_JSON = BASE_DIR / "qved_test.jsonl"
 
-# New prompt format: include <video> prefix like your example
 USER_PROMPT_TEMPLATE = (
     "Please evaluate the exercise form shown. What mistakes, if any, are present, and what corrections would you recommend?"
 )
@@ -113,17 +112,20 @@ def main():
     val_data = output_data[train_end:val_end]
     test_data = output_data[val_end:]
 
-    # Write output JSONs
+    # Write output JSONL files
     BASE_DIR.mkdir(parents=True, exist_ok=True)
 
     with open(OUTPUT_TRAIN_JSON, "w") as f:
-        json.dump(train_data, f, indent=2)
+        for item in train_data:
+            f.write(json.dumps(item) + "\n")
 
     with open(OUTPUT_VAL_JSON, "w") as f:
-        json.dump(val_data, f, indent=2)
+        for item in val_data:
+            f.write(json.dumps(item) + "\n")
 
     with open(OUTPUT_TEST_JSON, "w") as f:
-        json.dump(test_data, f, indent=2)
+        for item in test_data:
+            f.write(json.dumps(item) + "\n")
 
     print(f"\n{'='*60}")
     print("Dataset Split Summary")
