@@ -81,7 +81,8 @@ def main():
         else:
             assistant_answer = str(assistant_answer)
 
-        user_prompt = USER_PROMPT_TEMPLATE  # No longer using exercise name in prompt
+        # Add <video> tag to user prompt as required by VideoLLaMA3
+        user_prompt = f"<video>\n{USER_PROMPT_TEMPLATE}"
 
         output_data.append({
             "video": relative_video_path,
