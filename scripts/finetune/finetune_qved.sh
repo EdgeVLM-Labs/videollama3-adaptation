@@ -4,24 +4,77 @@ echo "----------------------------------------------"
 echo "Starting VideoLLaMA3 Fine-tuning"
 echo "----------------------------------------------"
 
-# Initialize conda
-source $HOME/miniconda/etc/profile.d/conda.sh
+# Set HuggingFace environment variables for faster downloads
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export HF_HOME=${HF_HOME:-~/.cache/huggingface}
 
-# Activate the training environment
-echo "Activating videollama3-train environment..."
-conda activate videollama3-train
+# PyTorch memory management to avoid fragmentation
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to activate conda environment 'videollama3-train'"
-    echo "Please ensure the environment is created using setup_train.sh"
+# Pre-download models if not cached
+echo ""
+echo "----------------------------------------------"
+echo "Checking for required models..."
+echo "----------------------------------------------"
+
+# Check if models exist in cache
+MODELS_EXIST=true
+HF_CACHE="${HF_HOME}/hub"
+
+if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--VideoLLaMA3-2B" ]; then
+    echo "✗ VideoLLaMA3-2B not found in cache"
+    MODELS_EXIST=false
+fi
+
+if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--SigLIP-NaViT" ]; then
+    echo "✗ SigLIP-NaViT not found in cache"
+    MODELS_EXIST=false
+fi
+
+if [ "$MODELS_EXIST" = false ]; then
+    echo ""
+    echo "Downloading required models..."
+    python3 utils/download_models.py
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "⚠ Warning: Model download encountered issues."
+        echo "Continuing anyway - training script will attempt download..."
+        echo ""
+    fi
+else
+    echo "✓ All required models found in cache"
+fi
+
+echo ""
+echo "----------------------------------------------"
+echo "Models ready. Starting training..."
+echo "----------------------------------------------"
+
+# Ensure we're in the project root
+# When running: bash scripts/finetune/quickstart_finetune.sh from project root
+echo "Current working directory: $(pwd)"
+
+# Verify dataset accessibility
+if [ ! -d "dataset" ]; then
+    echo "✗ ERROR: Dataset directory not found"
+    echo "  Expected: $(pwd)/dataset"
+    echo "  Please run from project root: /workspace/videollama3-adaptation"
     exit 1
 fi
 
-echo "Environment activated successfully!"
-echo ""
+echo "✓ Dataset directory found at: $(pwd)/dataset"
+VIDEO_COUNT=$(find dataset -name "*.mp4" -type f 2>/dev/null | wc -l)
+echo "✓ Found $VIDEO_COUNT video files"
 
-# Navigate to the project root
-cd "$(dirname "$0")/../.."
+# Verify training data file
+if [ ! -f "dataset/qved_train.json" ]; then
+    echo "✗ ERROR: Training data not found at dataset/qved_train.json"
+    exit 1
+fi
+echo "✓ Training data found: dataset/qved_train.json"
+
+echo ""
 
 echo "----------------------------------------------"
 echo "Starting Stage 4 Fine-tuning..."
@@ -30,7 +83,7 @@ echo ""
 
 # Environment Variables
 ARG_WORLD_SIZE=${1:-1}
-ARG_NPROC_PER_NODE=${2:-8}
+ARG_NPROC_PER_NODE=${2:-1}  # Single GPU setup
 ARG_MASTER_ADDR="127.0.0.1"
 ARG_MASTER_PORT=16667
 ARG_RANK=0
@@ -49,19 +102,29 @@ fi
 echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
-# Training Arguments
-GLOBAL_BATCH_SIZE=128
-LOCAL_BATCH_SIZE=2
-GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
-echo $GRADIENT_ACCUMULATION_STEPS
+# Training Arguments (Single GPU)
+BATCH_SIZE=2
+GRADIENT_ACCUMULATION_STEPS=4
+
+echo "Training configuration:"
+echo "  Batch Size: $BATCH_SIZE"
+echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
+echo "  Effective batch size: $(($BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
 
 # Log Arguments
-export WANDB_PROJECT=videollama3
-export WANDB_ENTITY=samarasinghenidhan3-bcs-technology
-PRECEDING_RUN_NAME=stage_4
-RUN_NAME=stage_4
+export WANDB_PROJECT="videollama3"
+export WANDB_ENTITY="fyp-21"
+export WANDB_NAME="qved-finetune-$(date +%Y%m%d_%H%M%S)"
+
+# Model checkpoint - use HuggingFace model or local checkpoint
+# Option 1: HuggingFace model (recommended for initial fine-tuning)
+MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
+# Option 2: Local checkpoint
+# MODEL_PATH="work_dirs/videollama3/stage_3/checkpoint-xxxx"
+
+RUN_NAME=$WANDB_NAME
 DATA_DIR=dataset
-OUTP_DIR=work_dirs/videollama3/stage4 
+OUTP_DIR=results/qved_finetune
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
@@ -69,33 +132,32 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero1.json \
+    --deepspeed scripts/zero2.json \
     --model_type videollama3_qwen2 \
-    --model_path ${OUTP_DIR} \
+    --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
     --mm_projector_type mlp2x_gelu \
-    --data_path ${DATA_DIR}/qved_train.jsonl \
+    --data_path ${DATA_DIR}/qved_train.json \
     --data_folder ${DATA_DIR} \
     --image_merge_size 2 \
     --video_merge_size 2 \
     --fps 1 \
-    --max_frames 180 \
-    --model_max_length 16384 \
-    --mm_max_length 10240 \
+    --max_frames 32 \
+    --model_max_length 4096 \
+    --mm_max_length 3072 \
     --use_token_compression True \
     --bf16 True \
     --tf32 True \
     --fp16 False \
-    --output_dir ${OUTP_DIR}/${WANDB_PROJECT}/${RUN_NAME} \
+    --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs 1 \
-    --per_device_train_batch_size $LOCAL_BATCH_SIZE \
-    --per_device_eval_batch_size 4 \
+    --per_device_train_batch_size $BATCH_SIZE \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
     --evaluation_strategy "no" \
-    --save_strategy "steps" \
-    --save_steps 1000 \
+    --save_strategy "epoch" \
     --save_total_limit 2 \
-    --llm_lr 1e-5 \
+    --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
     --vision_encoder_lr 2e-6 \
     --weight_decay 0. \
@@ -103,10 +165,9 @@ torchrun --nnodes $WORLD_SIZE \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 16 \
-    --report_to tensorboard \
-    --run_name $RUN_NAME \
-    --dataset_cache_dir /mnt/damovl/DAMOVL_DATASETS/.cache
+    --dataloader_num_workers 2 \
+    --report_to wandb \
+    --run_name $RUN_NAME
 
 echo ""
 echo "----------------------------------------------"
