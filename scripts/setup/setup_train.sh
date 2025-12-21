@@ -42,7 +42,7 @@ echo "----------------------------------------------"
 echo "Installing Flash Attention..."
 echo "----------------------------------------------"
 
-pip install ninja packaging wheel
+pip install ninja packaging wheel huggingface_hub hf_transfer huggingface_hub[cli]
 pip install "flash-attn==2.7.3" --no-build-isolation
 
 
@@ -84,6 +84,6 @@ wandb login
 
 # Initialize HuggingFace Hub
 echo "🤗 Logging into HuggingFace Hub..."
-hf auth login
+huggingface-cli login
 
 source ~/.bashrc
