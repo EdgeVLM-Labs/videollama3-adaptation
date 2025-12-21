@@ -124,10 +124,9 @@ MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
 # Option 2: Local checkpoint
 # MODEL_PATH="work_dirs/videollama3/stage_3/checkpoint-xxxx"
 
-PRECEDING_RUN_NAME=stage_4
-RUN_NAME=stage_4
+RUN_NAME=$WANDB_NAME
 DATA_DIR=dataset
-OUTP_DIR=work_dirs/videollama3
+OUTP_DIR=results/videollama3
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
@@ -158,8 +157,7 @@ torchrun --nnodes $WORLD_SIZE \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
     --evaluation_strategy "no" \
-    --save_strategy "steps" \
-    --save_steps 20 \
+    --save_strategy "epoch" \
     --save_total_limit 2 \
     --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
