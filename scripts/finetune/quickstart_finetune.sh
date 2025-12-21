@@ -40,16 +40,16 @@ bash scripts/finetune/finetune_qved.sh
 echo -e "\n========================================="
 echo "[Step 3/3] Finetuning complete!"
 echo "========================================="
-echo "Model saved to: work_dirs/videollama3/stage_4/"
+echo "Model saved to: results/qved_finetune/"
 echo ""
 echo "Finding latest checkpoint..."
-LATEST_CKPT=$(ls -d work_dirs/videollama3/stage_4/checkpoint-* 2>/dev/null | sort -V | tail -1)
+LATEST_CKPT=$(ls -d results/qved_finetune/*/checkpoint-* 2>/dev/null | sort -V | tail -1)
 if [ -n "$LATEST_CKPT" ]; then
     echo "✓ Latest checkpoint: $LATEST_CKPT"
     MODEL_PATH="$LATEST_CKPT"
 else
-    echo "⚠ No checkpoints found. Model may still be in work_dirs/videollama3/stage_4/"
-    MODEL_PATH="work_dirs/videollama3/stage_4"
+    echo "⚠ No checkpoints found. Model may still be in results/qved_finetune/"
+    MODEL_PATH="results/qved_finetune"
 fi
 
 # Training output is logged to logs/ directory

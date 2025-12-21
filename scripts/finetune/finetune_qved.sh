@@ -34,7 +34,7 @@ fi
 if [ "$MODELS_EXIST" = false ]; then
     echo ""
     echo "Downloading required models..."
-    python3 scripts/finetune/download_models.py
+    python3 utils/download_models.py
 
     if [ $? -ne 0 ]; then
         echo ""
@@ -126,7 +126,7 @@ MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
 
 RUN_NAME=$WANDB_NAME
 DATA_DIR=dataset
-OUTP_DIR=results/videollama3
+OUTP_DIR=results/qved_finetune
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
