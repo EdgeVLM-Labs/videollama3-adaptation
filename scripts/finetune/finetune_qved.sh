@@ -103,7 +103,7 @@ echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
 # Training Arguments (Single GPU)
-BATCH_SIZE=1
+BATCH_SIZE=2
 GRADIENT_ACCUMULATION_STEPS=4
 
 echo "Training configuration:"
@@ -157,7 +157,6 @@ torchrun --nnodes $WORLD_SIZE \
     --evaluation_strategy "no" \
     --save_strategy "epoch" \
     --save_total_limit 2 \
-    --learning_rate 2e-5 \
     --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
     --vision_encoder_lr 2e-6 \
@@ -166,7 +165,7 @@ torchrun --nnodes $WORLD_SIZE \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 4 \
+    --dataloader_num_workers 2 \
     --report_to wandb \
     --run_name $RUN_NAME
 

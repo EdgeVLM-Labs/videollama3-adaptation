@@ -44,8 +44,12 @@ echo "----------------------------------------------"
 
 pip install ninja packaging wheel huggingface_hub hf_transfer huggingface_hub[cli]
 pip install "flash-attn==2.7.3" --no-build-isolation
+pip install openpyxl scikit-learn sentence-transformers rouge_score scikit-image
 
 conda install -n videollama3-train -c conda-forge ffmpeg -y
+
+apt-get update
+apt-get install texlive texlive-latex-extra texlive-fonts-recommended dvipng cm-super
 
 echo "=== CUDA Check ==="
 nvcc --version 2>/dev/null || echo "❌ nvcc not found"
