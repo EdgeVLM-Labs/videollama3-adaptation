@@ -146,8 +146,8 @@ torchrun --nnodes $WORLD_SIZE \
     --video_merge_size 2 \
     --fps 1 \
     --max_frames 32 \
-    --model_max_length 2048 \
-    --mm_max_length 2048 \
+    --model_max_length 4096 \
+    --mm_max_length 3072 \
     --use_token_compression True \
     --bf16 True \
     --tf32 True \
