@@ -102,16 +102,14 @@ fi
 echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
-# Training Arguments
-GLOBAL_BATCH_SIZE=4
-LOCAL_BATCH_SIZE=1
-GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
+# Training Arguments (Single GPU)
+BATCH_SIZE=1
+GRADIENT_ACCUMULATION_STEPS=4
 
 echo "Training configuration:"
-echo "  Global Batch Size: $GLOBAL_BATCH_SIZE"
-echo "  Local Batch Size: $LOCAL_BATCH_SIZE"
+echo "  Batch Size: $BATCH_SIZE"
 echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
-echo "  Effective batch size: $(($LOCAL_BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
+echo "  Effective batch size: $(($BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
 
 # Log Arguments
 export WANDB_PROJECT="videollama3"
@@ -153,7 +151,7 @@ torchrun --nnodes $WORLD_SIZE \
     --fp16 False \
     --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs 1 \
-    --per_device_train_batch_size $LOCAL_BATCH_SIZE \
+    --per_device_train_batch_size $BATCH_SIZE \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
     --evaluation_strategy "no" \
