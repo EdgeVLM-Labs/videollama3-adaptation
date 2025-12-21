@@ -91,13 +91,17 @@ fi
 
 echo "WORLD_SIZE: $WORLD_SIZE"
 echo "NPROC_PER_NODE: $NPROC_PER_NODE"
-echo "GRADIENT_ACCUMULATION_STEPS will be: $GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)"
 
-# Training Arguments
-GLOBAL_BATCH_SIZE=32
-LOCAL_BATCH_SIZE=4
+# Training Arguments - Single GPU optimized
+GLOBAL_BATCH_SIZE=32  # Reduced for single GPU
+LOCAL_BATCH_SIZE=1     # Start conservative to avoid OOM
 GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
-echo "Calculated GRADIENT_ACCUMULATION_STEPS: $GRADIENT_ACCUMULATION_STEPS"
+
+echo "Training configuration:"
+echo "  Global Batch Size: $GLOBAL_BATCH_SIZE"
+echo "  Local Batch Size: $LOCAL_BATCH_SIZE"
+echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
+echo "  Effective batch size: $(($LOCAL_BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
 
 # Log Arguments
 export WANDB_PROJECT="videollama3"
@@ -131,9 +135,9 @@ torchrun --nnodes $WORLD_SIZE \
     --image_merge_size 2 \
     --video_merge_size 2 \
     --fps 1 \
-    --max_frames 180 \
-    --model_max_length 16384 \
-    --mm_max_length 10240 \
+    --max_frames 64 \
+    --model_max_length 8192 \
+    --mm_max_length 4096 \
     --use_token_compression True \
     --bf16 True \
     --tf32 True \
@@ -141,12 +145,11 @@ torchrun --nnodes $WORLD_SIZE \
     --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs 1 \
     --per_device_train_batch_size $LOCAL_BATCH_SIZE \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
-    --eval_strategy "steps" \
-    --eval_steps 10 \
+    --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 10 \
+    --save_steps 20 \
     --save_total_limit 2 \
     --llm_lr 2e-5 \
     --mm_projector_lr 1e-5 \
@@ -156,10 +159,9 @@ torchrun --nnodes $WORLD_SIZE \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 1 \
+    --dataloader_num_workers 4 \
     --report_to tensorboard \
-    --run_name $RUN_NAME \
-    --dataset_cache_dir /mnt/damovl/DAMOVL_DATASETS/.cache
+    --run_name $RUN_NAME
 
 echo ""
 echo "----------------------------------------------"
