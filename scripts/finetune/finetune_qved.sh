@@ -4,24 +4,24 @@ echo "----------------------------------------------"
 echo "Starting VideoLLaMA3 Fine-tuning"
 echo "----------------------------------------------"
 
-# Initialize conda
-source $HOME/miniconda/etc/profile.d/conda.sh
+# # Initialize conda
+# source $HOME/miniconda/etc/profile.d/conda.sh
 
-# Activate the training environment
-echo "Activating videollama3-train environment..."
-conda activate videollama3-train
+# # Activate the training environment
+# echo "Activating videollama3-train environment..."
+# conda activate videollama3-train
 
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to activate conda environment 'videollama3-train'"
-    echo "Please ensure the environment is created using setup_train.sh"
-    exit 1
-fi
+# if [ $? -ne 0 ]; then
+#     echo "Error: Failed to activate conda environment 'videollama3-train'"
+#     echo "Please ensure the environment is created using setup_train.sh"
+#     exit 1
+# fi
 
-echo "Environment activated successfully!"
-echo ""
+# echo "Environment activated successfully!"
+# echo ""
 
-# Navigate to the project root
-cd "$(dirname "$0")/../.."
+# # Navigate to the project root
+# cd "$(dirname "$0")/../.."
 
 echo "----------------------------------------------"
 echo "Starting Stage 4 Fine-tuning..."
@@ -51,17 +51,19 @@ echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 
 # Training Arguments
 GLOBAL_BATCH_SIZE=128
-LOCAL_BATCH_SIZE=2
+LOCAL_BATCH_SIZE=4
 GRADIENT_ACCUMULATION_STEPS=$[$GLOBAL_BATCH_SIZE/($WORLD_SIZE*$NPROC_PER_NODE*$LOCAL_BATCH_SIZE)]
 echo $GRADIENT_ACCUMULATION_STEPS
 
 # Log Arguments
-export WANDB_PROJECT=videollama3
-export WANDB_ENTITY=samarasinghenidhan3-bcs-technology
+export WANDB_PROJECT="videollama3"
+export WANDB_ENTITY="fyp-21"
+export WANDB_NAME="qved-finetune-$(date +%Y%m%d_%H%M%S)"
+
 PRECEDING_RUN_NAME=stage_4
 RUN_NAME=stage_4
 DATA_DIR=dataset
-OUTP_DIR=work_dirs/videollama3/stage4 
+OUTP_DIR=work_dirs/videollama3/stage4
 
 torchrun --nnodes $WORLD_SIZE \
     --nproc_per_node $NPROC_PER_NODE \
@@ -69,12 +71,12 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero1.json \
+    --deepspeed scripts/zero3.json \
     --model_type videollama3_qwen2 \
     --model_path ${OUTP_DIR} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
     --mm_projector_type mlp2x_gelu \
-    --data_path ${DATA_DIR}/qved_train.jsonl \
+    --data_path ${DATA_DIR}/qved_train.json \
     --data_folder ${DATA_DIR} \
     --image_merge_size 2 \
     --video_merge_size 2 \
