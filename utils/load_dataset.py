@@ -128,9 +128,15 @@ def main():
 
     LOCAL_DIR.mkdir(parents=True, exist_ok=True)
     by_class, all_files = collect_videos(REPO_ID)
+    
+    start_time = time.time()
     manifest = sample_and_download(by_class, REPO_ID, LOCAL_DIR, max_per_class)
+    elapsed_time = time.time() - start_time
+    
     save_manifest(manifest, LOCAL_DIR)
     download_ground_truth(REPO_ID, LOCAL_DIR, all_files)
+    
+    print(f"\n⏱️  Video download time: {elapsed_time/60:.2f} minutes")
     print("🏁 Dataset download completed.")
 
 

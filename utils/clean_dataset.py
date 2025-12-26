@@ -13,6 +13,7 @@ import numpy as np
 import shutil
 import pandas as pd
 import os
+import time
 from pathlib import Path
 from tabulate import tabulate
 from tqdm import tqdm
@@ -492,6 +493,10 @@ if __name__ == "__main__":
     if not DATASET_PATH.exists():
         print(f"[ERROR] Dataset path not found:\n  {DATASET_PATH}")
     else:
+        start_time = time.time()
         source, dest = clean_dataset(DATASET_PATH, CLEANED_DATASET_PATH)
+        elapsed_time = time.time() - start_time
+        
+        print(f"\n⏱️  Dataset cleaning time: {elapsed_time/60:.2f} minutes")
         print("\n[SUCCESS] Dataset cleaning completed.")
         prompt_replace_dataset(source, dest)
