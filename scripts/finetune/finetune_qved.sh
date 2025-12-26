@@ -105,11 +105,13 @@ echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 # Training Arguments (Single GPU)
 BATCH_SIZE=2
 GRADIENT_ACCUMULATION_STEPS=4
+NUM_EPOCHS=1
 
 echo "Training configuration:"
 echo "  Batch Size: $BATCH_SIZE"
 echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
 echo "  Effective batch size: $(($BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
+echo "  Number of Epochs: $NUM_EPOCHS"
 
 # Log Arguments
 export WANDB_PROJECT="videollama3"
@@ -132,7 +134,7 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero2.json \
+    --deepspeed scripts/zero3.json \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
     --vision_encoder DAMO-NLP-SG/SigLIP-NaViT \
@@ -150,7 +152,7 @@ torchrun --nnodes $WORLD_SIZE \
     --tf32 True \
     --fp16 False \
     --output_dir ${OUTP_DIR}/${RUN_NAME} \
-    --num_train_epochs 1 \
+    --num_train_epochs $NUM_EPOCHS \
     --per_device_train_batch_size $BATCH_SIZE \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
