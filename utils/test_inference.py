@@ -28,7 +28,7 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 warnings.filterwarnings("ignore")
 
 
-def load_model(model_path: str, device: str = "cuda"):
+def load_model(model_path: str, device: str = "cuda:0"):
     """
     Load the finetuned VideoLLaMA3 model and processor.
 
@@ -49,7 +49,7 @@ def load_model(model_path: str, device: str = "cuda"):
         attn_implementation="flash_attention_2",
     )
 
-    # Processor is not finetuned - load from base model
+    # load from base model
     base_model = "DAMO-NLP-SG/VideoLLaMA3-2B"
     print(f"Loading processor from base model: {base_model}")
     processor = AutoProcessor.from_pretrained(
@@ -134,9 +134,8 @@ def run_inference(
     end_time = time.time()
     generation_time = end_time - start_time
 
-    # Decode only the newly generated tokens (not the input)
-    generated_ids = output_ids[:, inputs['input_ids'].shape[1]:]
-    response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+    # Decode output
+    response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 
     # Calculate metrics
     output_token_count = output_ids.shape[1]

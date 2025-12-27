@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoProcessor
 USER_PROMPT = "Please evaluate the exercise form shown. What mistakes, if any, are present, and what corrections would you recommend?"
 # NOTE: transformers==4.46.3 is recommended for this script
 model_path = "DAMO-NLP-SG/VideoLLaMA3-2B"
-video_path = "dataset/pushups/00050098.mp4"
+video_path = "assets/00007869.mp4"
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     trust_remote_code=True,
