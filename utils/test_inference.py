@@ -49,8 +49,11 @@ def load_model(model_path: str, device: str = "cuda"):
         attn_implementation="flash_attention_2",
     )
 
+    # Processor is not finetuned - load from base model
+    base_model = "DAMO-NLP-SG/VideoLLaMA3-2B"
+    print(f"Loading processor from base model: {base_model}")
     processor = AutoProcessor.from_pretrained(
-        model_path,
+        base_model,
         trust_remote_code=True
     )
 
