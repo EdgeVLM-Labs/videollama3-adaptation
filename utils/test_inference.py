@@ -134,8 +134,9 @@ def run_inference(
     end_time = time.time()
     generation_time = end_time - start_time
 
-    # Decode output
-    response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
+    # Decode only the newly generated tokens (not the input)
+    generated_ids = output_ids[:, inputs['input_ids'].shape[1]:]
+    response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
 
     # Calculate metrics
     output_token_count = output_ids.shape[1]
