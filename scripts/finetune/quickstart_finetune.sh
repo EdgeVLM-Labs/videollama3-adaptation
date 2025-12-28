@@ -78,7 +78,7 @@ read -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     HF_REPO_NAME="videollama3-qved-finetune-${TIMESTAMP}"
-    echo "Uploading to EdgeVLM-Labs/${HF_REPO_NAME}..."
+    echo "Uploading to EdgeVLM-Labs/${HF_REPO_NAME} (private repository)..."
     python utils/hf_upload.py \
         --model_path "$MODEL_PATH" \
         --repo_name "$HF_REPO_NAME" \

@@ -44,7 +44,7 @@ def upload_model_to_hf(
     model_path: str,
     repo_name: str = None,
     org_name: str = DEFAULT_ORG,
-    private: bool = False,
+    private: bool = True,
     commit_message: str = None,
 ) -> str:
     """
@@ -198,9 +198,9 @@ def main():
         help=f"HuggingFace organization name (default: {DEFAULT_ORG})",
     )
     parser.add_argument(
-        "--private",
+        "--public",
         action="store_true",
-        help="Create a private repository",
+        help="Create a public repository (default: private)",
     )
     parser.add_argument(
         "--commit_message",
@@ -211,12 +211,15 @@ def main():
 
     args = parser.parse_args()
 
+    # By default, repositories are private unless --public is specified
+    is_private = not args.public
+
     try:
         repo_url = upload_model_to_hf(
             model_path=args.model_path,
             repo_name=args.repo_name,
             org_name=args.org,
-            private=args.private,
+            private=is_private,
             commit_message=args.commit_message,
         )
         print(f"\n🎉 Success! Model available at: {repo_url}")
