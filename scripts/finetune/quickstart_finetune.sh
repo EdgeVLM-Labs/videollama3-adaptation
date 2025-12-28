@@ -73,8 +73,9 @@ fi
 echo -e "\n========================================="
 echo "[Step 4/4] Upload to HuggingFace"
 echo "========================================="
-read -p "Upload finetuned model to HuggingFace? (y/N): " -r REPLY
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -p "Upload finetuned model to HuggingFace? (y/N): " REPLY
+echo ""  # Add newline after input
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
     HF_REPO_NAME="videollama3-qved-finetune-${TIMESTAMP}"
     echo "Uploading to EdgeVLM-Labs/${HF_REPO_NAME} (private repository)..."
     python utils/hf_upload.py \
