@@ -60,3 +60,4 @@ test_data/
 debug_scripts
 *.env
 .env
+/results
