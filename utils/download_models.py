@@ -2,6 +2,7 @@
 """
 Download required models for VideoLLaMA3 finetuning.
 This ensures all models are cached before training starts.
+Uses snapshot_download for efficient downloading without loading into memory.
 """
 
 import os
@@ -11,47 +12,25 @@ from pathlib import Path
 # Enable fast transfers
 os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
 
-def download_model(model_id, model_type="model"):
-    """Download a model from HuggingFace Hub."""
+def download_model(model_id, description):
+    """Download a model from HuggingFace Hub using snapshot_download."""
     print(f"\n{'='*60}")
     print(f"Downloading {model_id}...")
     print(f"{'='*60}")
 
     try:
-        if model_type == "model":
-            from transformers import AutoModel, AutoTokenizer, AutoConfig
+        from huggingface_hub import snapshot_download
 
-            print("  → Downloading config...")
-            config = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
-
-            print("  → Downloading tokenizer...")
-            tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-
-            print("  → Downloading model weights...")
-            model = AutoModel.from_pretrained(
-                model_id,
-                trust_remote_code=True,
-                torch_dtype="auto",
-                low_cpu_mem_usage=True
-            )
-            del model  # Free memory
-
-        elif model_type == "vision":
-            from transformers import AutoImageProcessor, AutoModel
-
-            print("  → Downloading image processor...")
-            processor = AutoImageProcessor.from_pretrained(model_id, trust_remote_code=True)
-
-            print("  → Downloading vision model weights...")
-            model = AutoModel.from_pretrained(
-                model_id,
-                trust_remote_code=True,
-                torch_dtype="auto",
-                low_cpu_mem_usage=True
-            )
-            del model  # Free memory
+        print("  → Downloading all model files...")
+        cache_dir = snapshot_download(
+            repo_id=model_id,
+            repo_type="model",
+            resume_download=True,
+            local_files_only=False,
+        )
 
         print(f"✓ {model_id} downloaded successfully!")
+        print(f"  Cached at: {cache_dir}")
         return True
 
     except Exception as e:
@@ -87,15 +66,15 @@ def main():
 
     # Models to download
     models = [
-        ("DAMO-NLP-SG/VideoLLaMA3-2B", "model", "Main VideoLLaMA3 model"),
-        ("DAMO-NLP-SG/SigLIP-NaViT", "vision", "Vision encoder (SigLIP)"),
+        ("DAMO-NLP-SG/VideoLLaMA3-2B", "Main VideoLLaMA3 model"),
+        ("DAMO-NLP-SG/SigLIP-NaViT", "Vision encoder (SigLIP)"),
     ]
 
     results = []
 
-    for model_id, model_type, description in models:
+    for model_id, description in models:
         print(f"\n[{len(results)+1}/{len(models)}] {description}")
-        success = download_model(model_id, model_type)
+        success = download_model(model_id, description)
         results.append((model_id, success))
 
     # Summary
