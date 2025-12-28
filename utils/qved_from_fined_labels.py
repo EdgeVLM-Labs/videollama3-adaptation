@@ -1,3 +1,15 @@
+"""
+QVED Dataset Converter for VideoLLaMA3 Fine-tuning
+
+Converts QVED fine-grained labels into VideoLLaMA3 conversation format.
+Generates train/val/test splits (60%/20%/20%) with proper <video> tags.
+
+Output format matches VideoLLaMA3 expectations:
+- Uses <video> tag (not repeated <image> tags)
+- Conversation format with "from" and "value" keys
+- Video paths relative to data_folder
+"""
+
 import json
 import os
 import random
