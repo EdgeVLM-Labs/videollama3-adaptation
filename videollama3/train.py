@@ -105,6 +105,7 @@ class ModelArguments:
 class DataArguments:
     # Path Arguments
     data_path: List[str] = field(default=None, metadata={"help": "Path to the training data."})
+    eval_data_path: Optional[List[str]] = field(default=None, metadata={"help": "Path to the evaluation/validation data."})
     # image_folder: Optional[str] = field(default=None)
     # video_folder: Optional[str] = field(default=None)
     data_folder: Optional[str] = field(default=None)
@@ -410,9 +411,16 @@ def make_supervised_data_module(vlprocessor, data_args) -> Dict:
         data_path=data_args.data_path,
         data_args=data_args
     )
+    eval_dataset = None
+    if data_args.eval_data_path is not None:
+        eval_dataset = LazySupervisedDataset(
+            vlprocessor=vlprocessor,
+            data_path=data_args.eval_data_path,
+            data_args=data_args
+        )
     data_collator = DataCollatorForSupervisedDataset(vlprocessor=vlprocessor)
     return dict(train_dataset=train_dataset,
-                eval_dataset=None,
+                eval_dataset=eval_dataset,
                 data_collator=data_collator)
 
 
@@ -462,9 +470,16 @@ def make_flattening_supervised_data_module(vlprocessor: transformers.ProcessorMi
         data_path=data_args.data_path,
         data_args=data_args
     )
+    eval_dataset = None
+    if data_args.eval_data_path is not None:
+        eval_dataset = LazySupervisedDataset(
+            vlprocessor=vlprocessor,
+            data_path=data_args.eval_data_path,
+            data_args=data_args
+        )
     data_collator = DataCollatorWithFlatteningForSupervisedDataset(vlprocessor=vlprocessor)
     return dict(train_dataset=train_dataset,
-                eval_dataset=None,
+                eval_dataset=eval_dataset,
                 data_collator=data_collator)
 
 

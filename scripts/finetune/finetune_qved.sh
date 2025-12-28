@@ -78,6 +78,13 @@ if [ ! -f "dataset/qved_train.json" ]; then
 fi
 echo "✓ Training data found: dataset/qved_train.json"
 
+# Verify validation data file
+if [ ! -f "dataset/qved_val.json" ]; then
+    echo "✗ ERROR: Validation data not found at dataset/qved_val.json"
+    exit 1
+fi
+echo "✓ Validation data found: dataset/qved_val.json"
+
 echo ""
 
 echo "----------------------------------------------"
@@ -175,6 +182,7 @@ torchrun --nnodes $WORLD_SIZE \
     --vision_encoder "$VISION_TOWER" \
     --mm_projector_type "$PROJECTOR_TYPE" \
     --data_path ${DATA_DIR}/qved_train.json \
+    --eval_data_path ${DATA_DIR}/qved_val.json \
     --data_folder ${DATA_DIR} \
     --image_merge_size 2 \
     --video_merge_size 2 \
