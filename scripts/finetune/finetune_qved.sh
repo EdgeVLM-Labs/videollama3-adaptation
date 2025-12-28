@@ -166,7 +166,7 @@ torchrun --nnodes $WORLD_SIZE \
     --master_port=$MASTER_PORT \
     --node_rank $RANK \
     videollama3/train.py \
-    --deepspeed scripts/zero3.json \
+    --deepspeed scripts/zero2.json \
     --lora_enable True \
     --lora_r $LORA_R \
     --lora_alpha $LORA_ALPHA \
@@ -179,7 +179,7 @@ torchrun --nnodes $WORLD_SIZE \
     --image_merge_size 2 \
     --video_merge_size 2 \
     --fps 1 \
-    --max_frames 32 \
+    --max_frames 16 \
     --model_max_length $MAXLEN  \
     --mm_max_length 1536 \
     --use_token_compression True \
