@@ -73,9 +73,7 @@ fi
 echo -e "\n========================================="
 echo "[Step 4/4] Upload to HuggingFace"
 echo "========================================="
-echo -n "Upload finetuned model to HuggingFace? (y/N): "
-read -n 1 -r
-echo
+read -p "Upload finetuned model to HuggingFace? (y/N): " -r REPLY
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     HF_REPO_NAME="videollama3-qved-finetune-${TIMESTAMP}"
     echo "Uploading to EdgeVLM-Labs/${HF_REPO_NAME} (private repository)..."
