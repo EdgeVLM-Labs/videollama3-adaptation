@@ -177,6 +177,8 @@ torchrun --nnodes $WORLD_SIZE \
     --lora_enable True \
     --lora_r $LORA_R \
     --lora_alpha $LORA_ALPHA \
+    --lora_dropout 0.05 \
+    --lora_bias none \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
     --vision_encoder "$VISION_TOWER" \
@@ -197,7 +199,7 @@ torchrun --nnodes $WORLD_SIZE \
     --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs $NUM_EPOCHS \
     --per_device_train_batch_size $BATCH_SIZE \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
     --eval_strategy "steps" \
     --eval_steps 10 \
