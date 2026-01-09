@@ -121,21 +121,87 @@ MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
 VISION_TOWER="DAMO-NLP-SG/SigLIP-NaViT"
 PROJECTOR_TYPE="mlp2x_gelu"
 
-# Training Arguments
-LR=2e-4
-MM_PROJ_LR=1e-4
-BATCH_SIZE=8
-GRADIENT_ACCUMULATION_STEPS=8
-NUM_EPOCHS=3
+# ============================================
+# Training Hyperparameters
+# ============================================
+
+# Video Processing
+FPS=1                        # Frame sampling rate
+MAX_FRAMES=16                # Maximum frames per video
+
+# Learning Rates
+LR=2e-4                      # LLM learning rate
+MM_PROJ_LR=1e-4              # Projector learning rate
+
+# LoRA Configuration
 LORA_R=64                    # LoRA rank
 LORA_ALPHA=128               # LoRA alpha
+
+# Batch & Training
+BATCH_SIZE=8                 # Per-device train batch size
+EVAL_BATCH_SIZE=8            # Per-device eval batch size
+GRADIENT_ACCUMULATION_STEPS=4
+NUM_EPOCHS=3
+
+# Sequence Length
 MAXLEN=2048                  # Max sequence length
 
-echo "Training configuration:"
-echo "  Batch Size: $BATCH_SIZE"
-echo "  Gradient Accumulation Steps: $GRADIENT_ACCUMULATION_STEPS"
-echo "  Effective batch size: $(($BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
-echo "  Number of Epochs: $NUM_EPOCHS"
+# Evaluation & Saving
+EVAL_STRATEGY="steps"
+EVAL_STEPS=30
+SAVE_STRATEGY="steps"
+SAVE_STEPS=30
+
+# Scheduler & Optimization
+WARMUP_RATIO=0.05
+
+# Misc Training
+GRADIENT_CHECKPOINTING=True
+LOGGING_STEPS=1
+DATALOADER_NUM_WORKERS=2
+
+echo ""
+echo "============================================"
+echo "       Training Hyperparameters"
+echo "============================================"
+echo ""
+echo "Video Processing:"
+echo "  Frame Sampling Rate (FPS):    $FPS"
+echo "  Maximum Frames per Video:     $MAX_FRAMES"
+echo ""
+echo "Learning Rates:"
+echo "  LLM Learning Rate:            $LR"
+echo "  Projector Learning Rate:      $MM_PROJ_LR"
+echo ""
+echo "LoRA Configuration:"
+echo "  LoRA Rank (r):                $LORA_R"
+echo "  LoRA Alpha:                   $LORA_ALPHA"
+echo ""
+echo "Batch & Training:"
+echo "  Epochs:                       $NUM_EPOCHS"
+echo "  Batch Size (per device):      $BATCH_SIZE"
+echo "  Gradient Accumulation Steps:  $GRADIENT_ACCUMULATION_STEPS"
+echo "  Effective Batch Size:         $(($BATCH_SIZE * $GRADIENT_ACCUMULATION_STEPS))"
+echo ""
+echo "Sequence Length:"
+echo "  Max Sequence Length:          $MAXLEN"
+echo ""
+echo "Evaluation & Saving:"
+echo "  Eval Strategy:                $EVAL_STRATEGY"
+echo "  Eval Steps:                   $EVAL_STEPS"
+echo "  Save Strategy:                $SAVE_STRATEGY"
+echo "  Save Steps:                   $SAVE_STEPS"
+echo ""
+echo "Scheduler & Optimization:"
+echo "  Warmup Ratio:                 $WARMUP_RATIO"
+echo ""
+echo "Misc:"
+echo "  Gradient Checkpointing:       $GRADIENT_CHECKPOINTING"
+echo "  Logging Steps:                $LOGGING_STEPS"
+echo "  Dataloader Workers:           $DATALOADER_NUM_WORKERS"
+echo ""
+echo "============================================"
+echo ""
 
 # Log Arguments
 export WANDB_PROJECT="videollama3"
@@ -147,19 +213,31 @@ DATA_DIR=dataset
 OUTP_DIR=results/qved_finetune
 
 # Save hyperparameters to a config file
+mkdir -p "$OUTP_DIR"
 CONFIG_FILE="$OUTP_DIR/hyperparameters.json"
 cat <<EOF > "$CONFIG_FILE"
 {
   "base_model": "$MODEL_PATH",
   "dataset": "QVED",
-  "epochs": $EPOCHS,
-  "learning_rate": $LR,
-  "mm_projector_lr": $MM_PROJ_LR,
+  "frame_sampling_rate": $FPS,
+  "max_frames_per_video": $MAX_FRAMES,
+  "epochs": $NUM_EPOCHS,
+  "learning_rate": "$LR",
+  "projector_lr": "$MM_PROJ_LR",
   "lora_r": $LORA_R,
   "lora_alpha": $LORA_ALPHA,
   "batch_size": $BATCH_SIZE,
   "gradient_accumulation_steps": $GRADIENT_ACCUMULATION_STEPS,
-  "max_length": $MAXLEN,
+  "max_sequence_length": $MAXLEN,
+  "gradient_checkpointing": $GRADIENT_CHECKPOINTING,
+  "per_device_eval_batch_size": $EVAL_BATCH_SIZE,
+  "eval_strategy": "$EVAL_STRATEGY",
+  "eval_steps": $EVAL_STEPS,
+  "save_strategy": "$SAVE_STRATEGY",
+  "save_steps": $SAVE_STEPS,
+  "warmup_ratio": $WARMUP_RATIO,
+  "logging_steps": $LOGGING_STEPS,
+  "dataloader_num_workers": $DATALOADER_NUM_WORKERS,
   "wandb_project": "$WANDB_PROJECT",
   "wandb_entity": "$WANDB_ENTITY",
   "wandb_run_name": "$WANDB_NAME"
@@ -188,9 +266,9 @@ torchrun --nnodes $WORLD_SIZE \
     --data_folder ${DATA_DIR} \
     --image_merge_size 2 \
     --video_merge_size 2 \
-    --fps 1 \
-    --max_frames 16 \
-    --model_max_length $MAXLEN  \
+    --fps $FPS \
+    --max_frames $MAX_FRAMES \
+    --model_max_length $MAXLEN \
     --mm_max_length 1536 \
     --use_token_compression True \
     --bf16 True \
@@ -199,22 +277,22 @@ torchrun --nnodes $WORLD_SIZE \
     --output_dir ${OUTP_DIR}/${RUN_NAME} \
     --num_train_epochs $NUM_EPOCHS \
     --per_device_train_batch_size $BATCH_SIZE \
-    --per_device_eval_batch_size 8 \
+    --per_device_eval_batch_size $EVAL_BATCH_SIZE \
     --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
-    --eval_strategy "steps" \
-    --eval_steps 10 \
-    --save_strategy "steps" \
-    --save_steps 10 \
+    --eval_strategy $EVAL_STRATEGY \
+    --eval_steps $EVAL_STEPS \
+    --save_strategy $SAVE_STRATEGY \
+    --save_steps $SAVE_STEPS \
     --save_total_limit 3 \
     --llm_lr $LR \
     --mm_projector_lr $MM_PROJ_LR \
-    --vision_encoder_lr 2e-5 \
+    --vision_encoder_lr None \
     --weight_decay 0. \
-    --warmup_ratio 0.05 \
+    --warmup_ratio $WARMUP_RATIO \
     --lr_scheduler_type "cosine" \
-    --logging_steps 1 \
-    --gradient_checkpointing True \
-    --dataloader_num_workers 2 \
+    --logging_steps $LOGGING_STEPS \
+    --gradient_checkpointing $GRADIENT_CHECKPOINTING \
+    --dataloader_num_workers $DATALOADER_NUM_WORKERS \
     --report_to wandb \
     --run_name $RUN_NAME
 
