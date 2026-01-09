@@ -2,12 +2,12 @@
 """
 HuggingFace Model Upload Utility
 
-Uploads finetuned Mobile-VideoGPT models to HuggingFace Hub.
+Uploads finetuned VideoLLaMA3 models to HuggingFace Hub.
 
 Usage:
-    python utils/hf_upload.py --model_path results/qved_finetune_mobilevideogpt_0.5B
-    python utils/hf_upload.py --model_path results/qved_finetune_mobilevideogpt_0.5B --repo_name qved-finetune-20241128
-    python utils/hf_upload.py --model_path results/qved_finetune_mobilevideogpt_0.5B --private
+    python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B
+    python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B --repo_name qved-finetune-20241128
+    python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B --private
 """
 
 import os
@@ -48,7 +48,7 @@ def upload_model_to_hf(
     commit_message: str = None,
 ) -> str:
     """
-    Upload a finetuned model to HuggingFace Hub.
+    Upload a finetuned VideoLLaMA3 model to HuggingFace Hub.
 
     Args:
         model_path: Path to the model directory (can be checkpoint or base finetuning dir)
@@ -94,7 +94,7 @@ def upload_model_to_hf(
     repo_id = f"{org_name}/{repo_name}"
 
     print(f"\n{'='*60}")
-    print("HuggingFace Model Upload")
+    print("HuggingFace Model Upload (VideoLLaMA3)")
     print(f"{'='*60}")
     print(f"Model path: {model_path}")
     print(f"Repository: {repo_id}")
@@ -135,9 +135,9 @@ def upload_model_to_hf(
     # Prepare commit message
     if commit_message is None:
         if has_adapter:
-            commit_message = f"Upload LoRA adapters from {model_path.name}"
+            commit_message = f"Upload LoRA adapters from {model_path.name} (VideoLLaMA3)"
         else:
-            commit_message = f"Upload finetuned model from {model_path.name}"
+            commit_message = f"Upload finetuned VideoLLaMA3 model from {model_path.name}"
 
     # Upload model
     print(f"\n🚀 Uploading model to {repo_id}...")
@@ -168,7 +168,7 @@ def upload_model_to_hf(
     if has_adapter:
         print(f"\n  # For LoRA adapters:")
         print(f"  from peft import PeftModel")
-        print(f"  base_model = AutoModelForCausalLM.from_pretrained('Amshaker/Mobile-VideoGPT-0.5B')")
+        print(f"  base_model = AutoModelForCausalLM.from_pretrained('DAMO-NLP-SG/VideoLLaMA3-2B')")
         print(f"  model = PeftModel.from_pretrained(base_model, '{repo_id}')")
     print(f"{'='*60}")
 
@@ -177,7 +177,7 @@ def upload_model_to_hf(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Upload finetuned Mobile-VideoGPT model to HuggingFace Hub"
+        description="Upload finetuned VideoLLaMA3 model to HuggingFace Hub"
     )
     parser.add_argument(
         "--model_path",
