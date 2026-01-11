@@ -1,243 +1,174 @@
 #!/usr/bin/env python3
 """
-Base Model Inference Utility
+Base Model Inference Script for QVED Test Set.
 
-This utility runs inference using the base (non-finetuned) model
-to compare against finetuned model predictions.
-
-Usage:
-    from utils.base_model_inference import get_base_model_predictions
-
-    predictions = get_base_model_predictions(
-        test_data,
-        base_model="Amshaker/Mobile-VideoGPT-0.5B",
-        data_path="dataset",
-        device="cuda"
-    )
+Runs inference using a base VideoLLaMA3 model on the test JSON file and
+stores predictions to an output JSON.
 """
 
+import argparse
 import json
-import torch
+import os
+import time
 from pathlib import Path
-from typing import List, Dict
+
+import torch
 from tqdm import tqdm
+from transformers import AutoModelForCausalLM, AutoProcessor
 
 
-def load_base_model(model_path: str, device: str = "cuda"):
-    """Load the base Mobile-VideoGPT model."""
-    try:
-        from mobilevideogpt.model.builder import load_pretrained_model
-        from mobilevideogpt.mm_utils import get_model_name_from_path
+def load_base_model(model_path: str, device: str = "cuda:0"):
+    """Load the base VideoLLaMA3 model and processor."""
+    if not model_path:
+        model_path = "DAMO-NLP-SG/VideoLLaMA3-2B"
 
-        print(f"Loading base model from {model_path}...")
-        model_name = get_model_name_from_path(model_path)
-        tokenizer, model, image_processor, _ = load_pretrained_model(
-            model_path,
-            None,
-            model_name,
-            device_map=device
-        )
+    print(f"Loading base model from: {model_path}")
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path,
+        trust_remote_code=True,
+        device_map={"": device},
+        torch_dtype=torch.bfloat16 if device.startswith("cuda") else torch.float32,
+        attn_implementation="flash_attention_2" if device.startswith("cuda") else None,
+    )
 
-        model.eval()
-        print("✓ Base model loaded successfully")
-        return tokenizer, model, image_processor
+    processor = AutoProcessor.from_pretrained(
+        model_path,
+        trust_remote_code=True
+    )
 
-    except Exception as e:
-        print(f"❌ Error loading base model: {e}")
-        raise
+    return model, processor
 
 
-def run_base_inference(
+@torch.inference_mode()
+def run_inference(
+    model,
+    processor,
     video_path: str,
     prompt: str,
-    model,
-    tokenizer,
-    image_processor,
-    device: str = "cuda",
-    max_new_tokens: int = 64
-) -> str:
-    """Run inference on a single video with the base model."""
-    try:
-        from mobilevideogpt.mm_utils import process_video, tokenizer_image_token
-        from mobilevideogpt.constants import IMAGE_TOKEN_INDEX
-        from mobilevideogpt.conversation import conv_templates
+    fps: int = 1,
+    max_frames: int = 16,
+    max_new_tokens: int = 64,
+    device: str = "cuda:0",
+):
+    """Run inference on a single video and return the decoded response."""
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "video",
+                    "video": {
+                        "video_path": video_path,
+                        "fps": fps,
+                        "max_frames": max_frames,
+                    },
+                },
+                {"type": "text", "text": prompt},
+            ],
+        },
+    ]
 
-        # Process video
-        video_tensor = process_video(
-            video_path,
-            image_processor,
-            model.config
-        ).to(dtype=torch.float16, device=device)
+    inputs = processor(
+        conversation=conversation,
+        add_system_prompt=True,
+        add_generation_prompt=True,
+        return_tensors="pt",
+    )
 
-        # Prepare conversation
-        conv = conv_templates["qwen_2"].copy()
-        conv.append_message(conv.roles[0], prompt)
-        conv.append_message(conv.roles[1], None)
-        prompt_formatted = conv.get_prompt()
+    inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
+    if "pixel_values" in inputs and device.startswith("cuda"):
+        inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
 
-        # Tokenize
-        input_ids = tokenizer_image_token(
-            prompt_formatted,
-            tokenizer,
-            IMAGE_TOKEN_INDEX,
-            return_tensors='pt'
-        ).unsqueeze(0).to(device)
+    start_time = time.time()
+    output_ids = model.generate(
+        **inputs,
+        max_new_tokens=max_new_tokens,
+        do_sample=False,
+        use_cache=True,
+    )
+    generation_time = time.time() - start_time
 
-        # Generate
-        with torch.inference_mode():
-            output_ids = model.generate(
-                input_ids,
-                images=video_tensor.unsqueeze(0),
-                do_sample=False,
-                max_new_tokens=max_new_tokens,
-                use_cache=True
-            )
+    response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 
-        # Decode
-        output = tokenizer.batch_decode(
-            output_ids,
-            skip_special_tokens=True
-        )[0].strip()
+    metrics = {
+        "generation_time": round(generation_time, 4),
+        "generated_tokens": int(output_ids.shape[1] - inputs["input_ids"].shape[1]),
+    }
 
-        return output
-
-    except Exception as e:
-        print(f"❌ Error during inference: {e}")
-        return f"[ERROR: {str(e)}]"
-
-
-def get_base_model_predictions(
-    test_data: List[Dict],
-    base_model: str = "Amshaker/Mobile-VideoGPT-0.5B",
-    data_path: str = "dataset",
-    device: str = "cuda",
-    max_new_tokens: int = 64
-) -> List[Dict]:
-    """
-    Generate predictions for test data using the base model.
-
-    Args:
-        test_data: List of test samples with 'video', 'conversations' fields
-        base_model: Path or HuggingFace ID of base model
-        data_path: Base path for video files
-        device: Device to use (cuda/cpu)
-        max_new_tokens: Maximum tokens to generate
-
-    Returns:
-        List of dictionaries with base model predictions
-    """
-    print("\n" + "="*60)
-    print("Base Model Inference")
-    print("="*60)
-    print(f"Model: {base_model}")
-    print(f"Device: {device}")
-    print(f"Samples: {len(test_data)}")
-    print("="*60 + "\n")
-
-    # Load model
-    tokenizer, model, image_processor = load_base_model(base_model, device)
-
-    results = []
-
-    for idx, sample in enumerate(tqdm(test_data, desc="Running base model inference")):
-        try:
-            # Get video path
-            video_file = sample.get('video', '')
-            video_path = Path(data_path) / video_file
-
-            if not video_path.exists():
-                results.append({
-                    'id': sample.get('id', f'sample_{idx}'),
-                    'video': video_file,
-                    'base_prediction': '[ERROR: Video not found]',
-                    'status': 'error'
-                })
-                continue
-
-            # Get prompt (first user message)
-            conversations = sample.get('conversations', [])
-            prompt = ""
-            for conv in conversations:
-                if conv.get('from') == 'human':
-                    prompt = conv.get('value', '').replace('<video>\n', '').replace('<video>', '').strip()
-                    break
-
-            if not prompt:
-                prompt = "Describe this exercise video."
-
-            # Run inference
-            prediction = run_base_inference(
-                str(video_path),
-                prompt,
-                model,
-                tokenizer,
-                image_processor,
-                device,
-                max_new_tokens
-            )
-
-            results.append({
-                'id': sample.get('id', f'sample_{idx}'),
-                'video': video_file,
-                'base_prediction': prediction,
-                'status': 'success'
-            })
-
-        except Exception as e:
-            results.append({
-                'id': sample.get('id', f'sample_{idx}'),
-                'video': video_file,
-                'base_prediction': f'[ERROR: {str(e)}]',
-                'status': 'error'
-            })
-
-    print(f"\n✓ Base model inference complete: {len(results)} samples processed")
-    return results
+    return response, metrics
 
 
 def main():
-    """CLI interface for base model inference."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Run base model inference on test set")
-    parser.add_argument('--test_json', type=str, required=True, help='Path to test JSON file')
-    parser.add_argument('--base_model', type=str, default='Amshaker/Mobile-VideoGPT-0.5B',
-                        help='Base model path or HF ID')
-    parser.add_argument('--data_path', type=str, default='dataset', help='Base path for videos')
-    parser.add_argument('--output', type=str, default='base_model_predictions.json',
-                        help='Output JSON file')
-    parser.add_argument('--device', type=str, default='cuda', help='Device: cuda/cpu')
-    parser.add_argument('--max_new_tokens', type=int, default=64, help='Max tokens to generate')
-    parser.add_argument('--limit', type=int, help='Limit number of samples (for testing)')
+    parser.add_argument("--test_json", type=str, required=True, help="Path to test JSON file")
+    parser.add_argument("--base_model", type=str, default="",
+                        help="Base model path or HF ID")
+    parser.add_argument("--data_path", type=str, default="dataset", help="Base path for videos")
+    parser.add_argument("--output", type=str, default="base_model_predictions.json",
+                        help="Output JSON file")
+    parser.add_argument("--device", type=str, default="cuda:0", help="Device: cuda/cpu")
+    parser.add_argument("--max_new_tokens", type=int, default=64, help="Max tokens to generate")
+    parser.add_argument("--limit", type=int, help="Limit number of samples (for testing)")
 
     args = parser.parse_args()
 
-    # Load test data
-    print(f"Loading test data from {args.test_json}...")
-    with open(args.test_json, 'r') as f:
+    model, processor = load_base_model(args.base_model, device=args.device)
+
+    with open(args.test_json, "r") as f:
         test_data = json.load(f)
 
     if args.limit:
         test_data = test_data[:args.limit]
         print(f"Limited to {args.limit} samples")
 
-    # Run inference
-    results = get_base_model_predictions(
-        test_data,
-        base_model=args.base_model,
-        data_path=args.data_path,
-        device=args.device,
-        max_new_tokens=args.max_new_tokens
-    )
+    results = []
+    print(f"Running inference on {len(test_data)} samples...")
 
-    # Save results
+    for item in tqdm(test_data, desc="Processing videos"):
+        video_field = item.get("video")
+        video_rel_path = video_field[0] if isinstance(video_field, list) else video_field
+        video_path = str(Path(args.data_path) / video_rel_path)
+
+        conversations = item.get("conversations", [])
+        prompt = conversations[0]["value"].replace("<video>", "").strip() if conversations else ""
+        ground_truth = conversations[1]["value"] if len(conversations) > 1 else ""
+
+        try:
+            prediction, metrics = run_inference(
+                model,
+                processor,
+                video_path,
+                prompt,
+                max_new_tokens=args.max_new_tokens,
+                device=args.device,
+            )
+
+            results.append({
+                "video_path": video_rel_path,
+                "prompt": prompt,
+                "ground_truth": ground_truth,
+                "prediction": prediction,
+                "generated_tokens": metrics["generated_tokens"],
+                "generation_time": metrics["generation_time"],
+                "status": "success",
+            })
+        except Exception as exc:
+            results.append({
+                "video_path": video_rel_path,
+                "prompt": prompt,
+                "ground_truth": ground_truth,
+                "prediction": "",
+                "status": "error",
+                "error": str(exc),
+            })
+
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
 
-    print(f"\n✓ Results saved to {output_path}")
+    print(f"Results saved to: {output_path}")
 
 
 if __name__ == "__main__":
