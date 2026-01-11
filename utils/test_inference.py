@@ -14,7 +14,7 @@ import sys
 import os
 import warnings
 import argparse
-import json
+import jsonb
 import time
 from pathlib import Path
 from tqdm import tqdm
@@ -175,13 +175,13 @@ def main():
                         help="Base path for video files")
     parser.add_argument("--output", type=str, default=None,
                         help="Output file for predictions (default: saves to model directory)")
-    parser.add_argument("--device", type=str, default="cuda",
+    parser.add_argument("--device", type=str, default="cuda:0",
                         help="Device to use (cuda/cpu)")
-    parser.add_argument("--max_new_tokens", type=int, default=512,
+    parser.add_argument("--max_new_tokens", type=int, default=64,
                         help="Maximum number of new tokens to generate")
     parser.add_argument("--fps", type=int, default=1,
                         help="Frames per second for video processing")
-    parser.add_argument("--max_frames", type=int, default=32,
+    parser.add_argument("--max_frames", type=int, default=16,
                         help="Maximum frames to extract from video")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit number of samples to process (for testing)")
@@ -215,7 +215,7 @@ def main():
     print(f"Total test samples: {len(test_data)}")
 
     # GPU warmup with first few test videos
-    if args.device == "cuda" and len(test_data) > 0:
+    if args.device == "cuda:0" and len(test_data) > 0:
         warmup_videos = [
             str(Path(args.data_path) / item['video'][0] if isinstance(item['video'], list) else item['video'])
             for item in test_data[:2]

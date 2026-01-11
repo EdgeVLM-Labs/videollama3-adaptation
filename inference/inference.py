@@ -3,7 +3,7 @@ from transformers import AutoModelForCausalLM, AutoProcessor
 
 USER_PROMPT = "Please evaluate the exercise form shown. What mistakes, if any, are present, and what corrections would you recommend?"
 # NOTE: transformers==4.46.3 is recommended for this script
-model_path = "DAMO-NLP-SG/VideoLLaMA3-2B"
+model_path = "DAMO-NLP-SG/VideoLLaMA3-2B"    # Change the path to your finetuned model if needed
 video_path = "assets/00007869.mp4"
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
@@ -12,6 +12,7 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.bfloat16,
     attn_implementation="flash_attention_2",
 )
+base_model_path = "DAMO-NLP-SG/VideoLLaMA3-2B"  
 processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
 

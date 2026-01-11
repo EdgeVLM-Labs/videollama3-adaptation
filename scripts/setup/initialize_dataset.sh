@@ -2,6 +2,8 @@
 
 # Script to initialize QVED dataset with optional cleaning
 # This script orchestrates the complete dataset preparation pipeline
+#
+# Run from workspace root: bash scripts/setup/initialize_dataset.sh
 
 set -e  # Exit on error
 
