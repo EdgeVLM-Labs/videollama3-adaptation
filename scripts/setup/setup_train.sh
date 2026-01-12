@@ -44,7 +44,7 @@ echo "----------------------------------------------"
 
 pip install ninja packaging wheel huggingface_hub hf_transfer huggingface_hub[cli]
 pip install "flash-attn==2.7.3" --no-build-isolation
-pip install openpyxl scikit-learn sentence-transformers rouge_score scikit-image
+pip install openpyxl scikit-learn sentence-transformers rouge_score scikit-image jsonb
 
 conda install -n videollama3-train -c conda-forge ffmpeg -y
 
@@ -91,4 +91,4 @@ wandb login
 echo "🤗 Logging into HuggingFace Hub..."
 huggingface-cli login
 
-source ~/.bashrc
+source /root/.bashrc
