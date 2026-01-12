@@ -7,12 +7,12 @@ Uploads finetuned VideoLLaMA3 models to HuggingFace Hub.
 Usage:
     python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B
     python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B --repo_name qved-finetune-20241128
-    python utils/hf_upload.py --model_path results/qved_finetune_videollama3_2B --private
 """
 
 import os
 import sys
 import argparse
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -21,6 +21,7 @@ from huggingface_hub import HfApi, create_repo, upload_folder, login
 
 # Default organization name
 DEFAULT_ORG = "EdgeVLM-Labs"
+DEFAULT_BASE_MODEL = "DAMO-NLP-SG/VideoLLaMA3-2B"
 
 
 def get_default_repo_name() -> str:
@@ -46,6 +47,7 @@ def upload_model_to_hf(
     org_name: str = DEFAULT_ORG,
     private: bool = True,
     commit_message: str = None,
+    model_card_path: str = None,
 ) -> str:
     """
     Upload a finetuned VideoLLaMA3 model to HuggingFace Hub.
@@ -139,6 +141,14 @@ def upload_model_to_hf(
         else:
             commit_message = f"Upload finetuned VideoLLaMA3 model from {model_path.name}"
 
+    # Ensure a model card exists
+    ensure_model_card(
+        model_path=model_path,
+        repo_id=repo_id,
+        has_adapter=has_adapter,
+        model_card_path=model_card_path,
+    )
+
     # Upload model
     print(f"\n🚀 Uploading model to {repo_id}...")
     print("  This may take a few minutes depending on model size...")
@@ -175,6 +185,82 @@ def upload_model_to_hf(
     return repo_url
 
 
+def ensure_model_card(
+    model_path: Path,
+    repo_id: str,
+    has_adapter: bool,
+    model_card_path: str = None,
+) -> None:
+    """Create or copy a model card (README.md) into the model folder."""
+    readme_path = model_path / "README.md"
+
+    if model_card_path:
+        source_path = Path(model_card_path)
+        if not source_path.exists():
+            raise FileNotFoundError(f"Model card not found: {source_path}")
+        shutil.copyfile(source_path, readme_path)
+        print(f"✓ Model card copied to: {readme_path}")
+        return
+
+    if readme_path.exists():
+        print(f"✓ Existing model card found at: {readme_path}")
+        return
+
+    card = f"""---
+language: en
+license: apache-2.0
+tags:
+- videollama3
+- video
+- vision-language
+- qved
+base_model: {DEFAULT_BASE_MODEL}
+library_name: transformers
+---
+
+# {repo_id}
+
+## Model Description
+This repository contains a fine-tuned VideoLLaMA3 model for video-based exercise form evaluation.
+It is fine-tuned from `{DEFAULT_BASE_MODEL}` on the QVED dataset.
+
+## Intended Use
+- Analyze exercise videos and provide feedback on form and corrections.
+- Research and evaluation for video-language tasks.
+
+## Limitations
+- Predictions may be incorrect or incomplete.
+- Performance depends on video quality and framing.
+
+## Training Data
+QVED fine-grained labels converted into the VideoLLaMA3 conversation format.
+
+## Usage
+```python
+from transformers import AutoModelForCausalLM, AutoProcessor
+
+model = AutoModelForCausalLM.from_pretrained("{repo_id}", trust_remote_code=True)
+processor = AutoProcessor.from_pretrained("{DEFAULT_BASE_MODEL}", trust_remote_code=True)
+```
+
+## Citation
+If you use this model, please cite:
+
+```bibtex
+@misc{{videollama3-qved-finetune,
+  author = {{EdgeVLM Labs}},
+  title = {{VideoLLaMA3 QVED Finetuned Model}},
+  year = {{2025}},
+  publisher = {{HuggingFace}},
+  url = {{https://huggingface.co/{repo_id}}}
+}}
+```
+"""
+
+    readme_path.write_text(card, encoding="utf-8")
+    print(f"✓ Model card created at: {readme_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Upload finetuned VideoLLaMA3 model to HuggingFace Hub"
@@ -208,6 +294,12 @@ def main():
         default=None,
         help="Custom commit message for the upload",
     )
+    parser.add_argument(
+        "--model_card",
+        type=str,
+        default=None,
+        help="Path to a README.md to upload as the model card",
+    )
 
     args = parser.parse_args()
 
@@ -221,6 +313,7 @@ def main():
             org_name=args.org,
             private=is_private,
             commit_message=args.commit_message,
+            model_card_path=args.model_card,
         )
         print(f"\n🎉 Success! Model available at: {repo_url}")
     except Exception as e:
