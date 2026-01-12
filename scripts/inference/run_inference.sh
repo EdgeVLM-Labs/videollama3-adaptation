@@ -2,6 +2,8 @@
 
 # VideoLLaMA3 QVED Test Inference and Evaluation Report Generator
 # This script runs inference on the test set and generates an evaluation report
+# Example usage:
+#   bash scripts/inference/run_inference.sh --model_path results/qved_finetune/qved-finetune-20251221/checkpoint-20
 
 set -e  # Exit on error
 
@@ -14,8 +16,8 @@ MODEL_PATH=""
 TEST_JSON="dataset/qved_test.json"
 DATA_PATH="dataset"
 OUTPUT_DIR=""
-DEVICE="cuda"
-MAX_NEW_TOKENS=512
+DEVICE="cuda:0"
+MAX_NEW_TOKENS=64
 FPS=1
 MAX_FRAMES=32
 LIMIT=""
