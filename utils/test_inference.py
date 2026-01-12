@@ -141,7 +141,7 @@ def run_inference(
     # Calculate metrics
     output_token_count = output_ids.shape[1]
     generated_token_count = output_token_count - input_token_count
-    tokens_per_second = generated_token_count / generation_time if generation_time > 0 else 0
+    tokens_per_second = abs(generated_token_count) / generation_time if generation_time > 0 else 0
 
     metrics = {
         'generated_tokens': generated_token_count,
