@@ -286,7 +286,6 @@ torchrun --nnodes $WORLD_SIZE \
     --save_total_limit 3 \
     --llm_lr $LR \
     --mm_projector_lr $MM_PROJ_LR \
-    --vision_encoder_lr None \
     --weight_decay 0. \
     --warmup_ratio $WARMUP_RATIO \
     --lr_scheduler_type "cosine" \
