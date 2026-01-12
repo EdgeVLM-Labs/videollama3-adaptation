@@ -13,6 +13,7 @@ echo "========================================="
 
 # Default values
 MODEL_PATH=""
+HF_REPO=""
 TEST_JSON="dataset/qved_test.json"
 DATA_PATH="dataset"
 OUTPUT_DIR=""
@@ -28,6 +29,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --model_path)
             MODEL_PATH="$2"
+            shift 2
+            ;;
+        --hf_repo)
+            HF_REPO="$2"
             shift 2
             ;;
         --test_json)
@@ -69,8 +74,9 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: bash scripts/inference/run_inference.sh --model_path <path> [options]"
             echo ""
-            echo "Required:"
-            echo "  --model_path      Path to finetuned VideoLLaMA3 model checkpoint"
+            echo "Model Source (one required):"
+            echo "  --model_path      Path to local finetuned model checkpoint"
+            echo "  --hf_repo         HuggingFace repository URL/ID (e.g., org/model)"
             echo ""
             echo "Optional:"
             echo "  --test_json       Path to test set JSON (default: dataset/qved_test.json)"
@@ -87,6 +93,9 @@ while [[ $# -gt 0 ]]; do
             echo "  # Using local checkpoint:"
             echo "  bash scripts/inference/run_inference.sh --model_path results/qved_finetune/qved-finetune-20251221/checkpoint-20"
             echo ""
+            echo "  # Using HuggingFace repo:"
+            echo "  bash scripts/inference/run_inference.sh --hf_repo DAMO-NLP-SG/VideoLLaMA3-2B"
+            echo ""
             echo "  # With options:"
             echo "  bash scripts/inference/run_inference.sh --model_path results/qved_finetune/run1 --limit 10 --max_frames 64"
             exit 0
@@ -99,17 +108,28 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate: model_path must be provided
-if [ -z "$MODEL_PATH" ]; then
-    echo "❌ Error: --model_path is required"
+# Validate: exactly one of model_path or hf_repo must be provided
+if [ -n "$MODEL_PATH" ] && [ -n "$HF_REPO" ]; then
+    echo "❌ Error: Provide only one of --model_path or --hf_repo"
     echo "Use --help for usage information"
     exit 1
 fi
 
-# Validate model path exists
-if [ ! -e "$MODEL_PATH" ]; then
-    echo "❌ Error: Model path not found: $MODEL_PATH"
+if [ -z "$MODEL_PATH" ] && [ -z "$HF_REPO" ]; then
+    echo "❌ Error: One of --model_path or --hf_repo is required"
+    echo "Use --help for usage information"
     exit 1
+fi
+
+# Use hf repo as model path when provided
+if [ -n "$HF_REPO" ]; then
+    MODEL_PATH="$HF_REPO"
+else
+    # Validate model path exists
+    if [ ! -e "$MODEL_PATH" ]; then
+        echo "❌ Error: Model path not found: $MODEL_PATH"
+        exit 1
+    fi
 fi
 
 # Auto-detect latest checkpoint if path is a directory
