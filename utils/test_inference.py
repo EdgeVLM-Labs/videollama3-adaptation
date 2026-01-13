@@ -69,7 +69,7 @@ def run_inference(
     prompt: str,
     fps: int = 1,
     max_frames: int = 32,
-    max_new_tokens: int = 512,
+    max_new_tokens: int = 64,
     device: str = "cuda"
 ):
     """
@@ -121,7 +121,7 @@ def run_inference(
         inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
 
     # Track metrics
-    input_token_count = inputs['input_ids'].shape[1]
+    input_token_count = int(inputs["attention_mask"][0].sum().item())
     start_time = time.time()
 
     # Generate
@@ -139,7 +139,7 @@ def run_inference(
     response = processor.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
 
     # Calculate metrics
-    output_token_count = output_ids.shape[1]
+    output_token_count = int(output_ids.shape[1])
     generated_token_count = output_token_count - input_token_count
     tokens_per_second = abs(generated_token_count) / generation_time if generation_time > 0 else 0
 
