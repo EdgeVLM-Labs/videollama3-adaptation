@@ -23,6 +23,7 @@ from tqdm import tqdm
 import torch
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoProcessor
+from peft import PeftModel
 
 # Suppress warnings
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -34,27 +35,30 @@ def load_model(model_path: str, device: str = "cuda:0"):
     Load the finetuned VideoLLaMA3 model and processor.
 
     Args:
-        model_path: Path to finetuned model checkpoint
+        model_path: Path to finetuned model checkpoint (PEFT adapter)
         device: Device to load model on
 
     Returns:
         tuple: (model, processor)
     """
-    print(f"Loading model from: {model_path}")
-
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
+    base_model_name = "DAMO-NLP-SG/VideoLLaMA3-2B"
+    
+    print(f"Loading base model: {base_model_name}")
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_model_name,
         trust_remote_code=True,
         device_map={"": device},
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
     )
 
-    # load from base model
-    base_model = "DAMO-NLP-SG/VideoLLaMA3-2B"
-    print(f"Loading processor from base model: {base_model}")
+    print(f"Loading PEFT adapter from: {model_path}")
+    model = PeftModel.from_pretrained(base_model, model_path)
+    model = model.merge_and_unload()  # Merge adapter weights for faster inference
+
+    print(f"Loading processor from base model: {base_model_name}")
     processor = AutoProcessor.from_pretrained(
-        base_model,
+        base_model_name,
         trust_remote_code=True
     )
 
