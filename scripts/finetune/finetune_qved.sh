@@ -30,11 +30,6 @@ if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--VideoLLaMA3-2B" ]; then
     MODELS_EXIST=false
 fi
 
-if [ ! -d "${HF_CACHE}/models--DAMO-NLP-SG--SigLIP-NaViT" ]; then
-    echo "✗ SigLIP-NaViT not found in cache"
-    MODELS_EXIST=false
-fi
-
 if [ "$MODELS_EXIST" = false ]; then
     echo ""
     echo "Downloading required models..."
@@ -118,7 +113,7 @@ echo "NPROC_PER_NODE: $NPROC_PER_NODE"
 MODEL_PATH="DAMO-NLP-SG/VideoLLaMA3-2B"
 # Option 2: Local checkpoint
 # MODEL_PATH="work_dirs/videollama3/stage_3/checkpoint-xxxx"
-VISION_TOWER="DAMO-NLP-SG/SigLIP-NaViT"
+# VISION_TOWER="DAMO-NLP-SG/SigLIP-NaViT"
 PROJECTOR_TYPE="mlp2x_gelu"
 
 # ============================================
@@ -259,8 +254,9 @@ torchrun --nnodes $WORLD_SIZE \
     --lora_bias none \
     --model_type videollama3_qwen2 \
     --model_path ${MODEL_PATH} \
-    --vision_encoder "$VISION_TOWER" \
+    --vision_encoder ${MODEL_PATH} \
     --mm_projector_type "$PROJECTOR_TYPE" \
+    --pretrain_mm_projector ${MODEL_PATH} \
     --data_path ${DATA_DIR}/qved_train.json \
     --eval_data_path ${DATA_DIR}/qved_val.json \
     --data_folder ${DATA_DIR} \
