@@ -55,9 +55,20 @@ def load_mm_projector(model_path, cache_dir=None, token=None):
         is_local = False
         folder = parse_snapshot_folder(model_path, cache_dir=cache_dir, repo_type="model")
         if not os.path.exists(os.path.join(folder, 'mm_projector.bin')):
-            # downloading from remote repo
-            from huggingface_hub import snapshot_download
-            snapshot_download(repo_id=model_path, cache_dir=cache_dir, token=token)
+            # Try loading from model.safetensors if mm_projector.bin doesn't exist
+            safetensors_path = os.path.join(folder, 'model.safetensors')
+            if os.path.exists(safetensors_path):
+                from safetensors import safe_open
+                mm_projector_weights = {}
+                with safe_open(safetensors_path, framework="pt", device="cpu") as f:
+                    for key in f.keys():
+                        mm_projector_weights[key] = f.get_tensor(key)
+                mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
+                return mm_projector_weights
+            else:
+                # downloading from remote repo
+                from huggingface_hub import snapshot_download
+                snapshot_download(repo_id=model_path, cache_dir=cache_dir, token=token)
 
     mm_projector_weights = torch.load(os.path.join(folder, 'mm_projector.bin'), map_location='cpu')
     mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
