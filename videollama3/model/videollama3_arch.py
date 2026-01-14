@@ -121,6 +121,12 @@ class Videollama3MetaModel:
             def get_w(weights, keyword):
                 return {k.split(keyword + '.')[1]: v for k, v in weights.items() if keyword in k}
 
+            # Load vision encoder weights from checkpoint if available
+            vision_encoder_weights = get_w(mm_projector_weights, 'vision_encoder')
+            if len(vision_encoder_weights) > 0:
+                print(f"Loading vision encoder weights from {pretrain_mm_projector}")
+                self.get_vision_encoder().load_state_dict(vision_encoder_weights, strict=False)
+            
             # self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'))
             # set strict=False to avoid missing key error regarding bert.embeddings.position_ids
             self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'), strict=False)

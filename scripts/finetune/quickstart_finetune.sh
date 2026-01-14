@@ -2,6 +2,21 @@
 
 # VideoLLaMA3 QVED Finetuning - Quick Start
 # This script runs all necessary steps to start finetuning
+#
+# Usage:
+#   bash scripts/finetune/quickstart_finetune.sh
+#
+# What this script does:
+#   1. Verifies your dataset and environment setup
+#   2. Starts LoRA finetuning on QVED dataset
+#   3. Generates training plots from logs
+#   4. (Optional) Uploads the finetuned model to HuggingFace Hub
+#
+# Prerequisites:
+#   - Dataset prepared in dataset/ directory (qved_train.json, qved_val.json, videos)
+#   - Python environment with VideoLLaMA3 dependencies installed
+#   - GPU with sufficient memory (recommended: 24GB+ VRAM)
+#   - Logged into WandB and HuggingFace (optional)
 
 set -e  # Exit on error
 
