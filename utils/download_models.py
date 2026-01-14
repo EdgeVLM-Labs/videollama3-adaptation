@@ -12,8 +12,16 @@ from pathlib import Path
 # Enable fast transfers
 os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
 
-def download_model(model_id, description):
-    """Download a model from HuggingFace Hub using snapshot_download."""
+def main():
+    print("""
+╔════════════════════════════════════════════════════════════╗
+║         VideoLLaMA3 Model Downloader                       ║
+║  Pre-downloads VideoLLaMA3-2B model for finetuning         ║
+╚════════════════════════════════════════════════════════════╝
+    """)
+
+    model_id = "DAMO-NLP-SG/VideoLLaMA3-2B"
+    
     print(f"\n{'='*60}")
     print(f"Downloading {model_id}...")
     print(f"{'='*60}")
@@ -29,12 +37,16 @@ def download_model(model_id, description):
             local_files_only=False,
         )
 
-        print(f"✓ {model_id} downloaded successfully!")
+        print(f"\n{'='*60}")
+        print("✓ Model downloaded successfully!")
+        print(f"{'='*60}")
         print(f"  Cached at: {cache_dir}")
-        return True
+        print("\nYou can now start finetuning with:")
+        print("  bash scripts/finetune/finetune_qved.sh")
+        return 0
 
     except Exception as e:
-        print(f"✗ Failed to download {model_id}")
+        print(f"\n✗ Failed to download {model_id}")
         print(f"  Error: {e}")
 
         # Try with huggingface-cli as fallback
@@ -47,58 +59,19 @@ def download_model(model_id, description):
                 text=True
             )
             if result.returncode == 0:
-                print(f"✓ {model_id} downloaded via huggingface-cli!")
-                return True
+                print(f"\n✓ Model downloaded via huggingface-cli!")
+                print("\nYou can now start finetuning with:")
+                print("  bash scripts/finetune/finetune_qved.sh")
+                return 0
             else:
                 print(f"✗ Fallback download failed: {result.stderr}")
         except Exception as fallback_error:
             print(f"✗ Fallback download failed: {fallback_error}")
 
-        return False
-
-def main():
-    print("""
-╔════════════════════════════════════════════════════════════╗
-║         VideoLLaMA3 Model Downloader                       ║
-║  Pre-downloads all required models for finetuning          ║
-╚════════════════════════════════════════════════════════════╝
-    """)
-
-    # Models to download
-    models = [
-        ("DAMO-NLP-SG/VideoLLaMA3-2B", "Main VideoLLaMA3 model"),
-        ("DAMO-NLP-SG/SigLIP-NaViT", "Vision encoder (SigLIP)"),
-    ]
-
-    results = []
-
-    for model_id, description in models:
-        print(f"\n[{len(results)+1}/{len(models)}] {description}")
-        success = download_model(model_id, description)
-        results.append((model_id, success))
-
-    # Summary
-    print(f"\n{'='*60}")
-    print("Download Summary")
-    print(f"{'='*60}")
-
-    for model_id, success in results:
-        status = "✓ SUCCESS" if success else "✗ FAILED"
-        print(f"  {status}: {model_id}")
-
-    all_success = all(success for _, success in results)
-
-    if all_success:
-        print("\n✓ All models downloaded successfully!")
-        print("You can now start finetuning with:")
-        print("  bash scripts/finetune/finetune_qved.sh")
-        return 0
-    else:
-        print("\n⚠ Some models failed to download.")
+        print("\n⚠ Download failed.")
         print("Please check your internet connection and try again.")
         print("\nManual download option:")
         print("  huggingface-cli download DAMO-NLP-SG/VideoLLaMA3-2B")
-        print("  huggingface-cli download DAMO-NLP-SG/SigLIP-NaViT")
         return 1
 
 if __name__ == "__main__":
