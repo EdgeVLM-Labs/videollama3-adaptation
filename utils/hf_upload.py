@@ -173,13 +173,26 @@ def upload_model_to_hf(
     print(f"{'='*60}")
     print(f"Repository URL: {repo_url}")
     print(f"\nTo use this model:")
-    print(f"  from transformers import AutoModelForCausalLM")
-    print(f"  model = AutoModelForCausalLM.from_pretrained('{repo_id}')")
     if has_adapter:
-        print(f"\n  # For LoRA adapters:")
+        print(f"  # For LoRA adapters:")
+        print(f"  from transformers import AutoModelForCausalLM, AutoProcessor")
         print(f"  from peft import PeftModel")
-        print(f"  base_model = AutoModelForCausalLM.from_pretrained('DAMO-NLP-SG/VideoLLaMA3-2B')")
+        print(f"  ")
+        print(f"  base_model = AutoModelForCausalLM.from_pretrained(")
+        print(f"      'DAMO-NLP-SG/VideoLLaMA3-2B',")
+        print(f"      trust_remote_code=True,")
+        print(f"      torch_dtype=torch.bfloat16")
+        print(f"  )")
         print(f"  model = PeftModel.from_pretrained(base_model, '{repo_id}')")
+        print(f"  model = model.merge_and_unload()  # Optional: merge for faster inference")
+        print(f"  ")
+        print(f"  processor = AutoProcessor.from_pretrained(")
+        print(f"      'DAMO-NLP-SG/VideoLLaMA3-2B',")
+        print(f"      trust_remote_code=True")
+        print(f"  )")
+    else:
+        print(f"  from transformers import AutoModelForCausalLM")
+        print(f"  model = AutoModelForCausalLM.from_pretrained('{repo_id}')")
     print(f"{'='*60}")
 
     return repo_url
@@ -236,11 +249,31 @@ It is fine-tuned from `{DEFAULT_BASE_MODEL}` on the QVED dataset.
 QVED fine-grained labels converted into the VideoLLaMA3 conversation format.
 
 ## Usage
+
+{'### LoRA Adapter' if has_adapter else '### Full Model'}
+
 ```python
 from transformers import AutoModelForCausalLM, AutoProcessor
+{'from peft import PeftModel' if has_adapter else ''}
+import torch
 
-model = AutoModelForCausalLM.from_pretrained("{repo_id}", trust_remote_code=True)
-processor = AutoProcessor.from_pretrained("{DEFAULT_BASE_MODEL}", trust_remote_code=True)
+{'# Load base model' if has_adapter else '# Load model'}
+base_model = AutoModelForCausalLM.from_pretrained(
+    "{DEFAULT_BASE_MODEL if has_adapter else repo_id}",
+    trust_remote_code=True,
+    torch_dtype=torch.bfloat16,
+    {'device_map="auto"' if not has_adapter else 'attn_implementation="flash_attention_2"'}
+)
+
+{'# Load and merge LoRA adapter' if has_adapter else ''}
+{'model = PeftModel.from_pretrained(base_model, "' + repo_id + '")' if has_adapter else ''}
+{'model = model.merge_and_unload()  # Merge adapter weights for faster inference' if has_adapter else ''}
+
+# Load processor
+processor = AutoProcessor.from_pretrained(
+    "{DEFAULT_BASE_MODEL}",
+    trust_remote_code=True
+)
 ```
 
 ## Citation
